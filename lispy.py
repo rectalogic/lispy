@@ -136,7 +136,7 @@ def to_string(x):
     elif isa(x, Symbol):
         return x
     elif isa(x, str):
-        return '"%s"' % x.encode("string_escape").replace('"', r"\"")
+        return '"%s"' % x.encode("unicode_escape").decode("utf-8").replace('"', r"\"")
     elif isa(x, list):
         return "(" + " ".join(map(to_string, x)) + ")"
     else:
@@ -150,11 +150,11 @@ def load(filename):
 
 def repl(prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
     "A prompt-read-eval-print loop."
-    sys.stderr.write("Lispy version 2.0\n")
+    print("Lispy version 2.0", file=sys.stderr)
     while True:
         try:
             if prompt:
-                sys.stderr.write(prompt)
+                print(prompt, file=sys.stderr, end="", flush=True)
             x = parse(inport)
             if x is eof_object:
                 return
