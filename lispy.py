@@ -4,8 +4,8 @@
 
 ################ Symbol, Procedure, classes
 
-from __future__ import division
-import re, sys, StringIO
+import re, sys
+from io import StringIO
 
 class Symbol(str): pass
 
@@ -14,7 +14,7 @@ def Sym(s, symbol_table={}):
     if s not in symbol_table: symbol_table[s] = Symbol(s)
     return symbol_table[s]
 
-_quote, _if, _set, _define, _lambda, _begin, _definemacro, = map(Sym, 
+_quote, _if, _set, _define, _lambda, _begin, _definemacro, = map(Sym,
 "quote   if   set!  define   lambda   begin   define-macro".split())
 
 _quasiquote, _unquote, _unquotesplicing = map(Sym,
@@ -32,7 +32,7 @@ class Procedure(object):
 def parse(inport):
     "Parse a program: read and expand/error-check it."
     # Backwards compatibility: given a str, convert it to an InPort
-    if isinstance(inport, str): inport = InPort(StringIO.StringIO(inport))
+    if isinstance(inport, str): inport = InPort(StringIO(inport))
     return expand(read(inport), toplevel=True)
 
 eof_object = Symbol('#<eof-object>') # Note: uninterned; can't be read
@@ -82,7 +82,7 @@ def atom(token):
     'Numbers become numbers; #t and #f are booleans; "..." string; otherwise Symbol.'
     if token == '#t': return True
     elif token == '#f': return False
-    elif token[0] == '"': return token[1:-1].decode('string_escape')
+    elif token[0] == '"': return token[1:-1].encode("utf-8").decode('unicode_escape')
     try: return int(token)
     except ValueError:
         try: return float(token)
@@ -114,9 +114,9 @@ def repl(prompt='lispy> ', inport=InPort(sys.stdin), out=sys.stdout):
             x = parse(inport)
             if x is eof_object: return
             val = eval(x)
-            if val is not None and out: print >> out, to_string(val)
+            if val is not None and out: print(to_string(val), file=out)
         except Exception as e:
-            print '%s: %s' % (type(e).__name__, e)
+            print('%s: %s' % (type(e).__name__, e))
 
 ################ Environment class
 
@@ -157,7 +157,7 @@ def add_globals(self):
     self.update(vars(math))
     self.update(vars(cmath))
     self.update({
-     '+':op.add, '-':op.sub, '*':op.mul, '/':op.div, 'not':op.not_, 
+     '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':op.not_, 
      '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq, 
      'equal?':op.eq, 'eq?':op.is_, 'length':len, 'cons':cons,
      'car':lambda x:x[0], 'cdr':lambda x:x[1:], 'append':op.add,  
@@ -229,7 +229,7 @@ def expand(x, toplevel=False):
     elif x[0] is _if:                    
         if len(x)==3: x = x + [None]     # (if t c) => (if t c None)
         require(x, len(x)==4)
-        return map(expand, x)
+        return [expand(e) for e in x]
     elif x[0] is _set:                   
         require(x, len(x)==3); 
         var = x[1]                       # (set! non-var exp) => Error
@@ -268,7 +268,7 @@ def expand(x, toplevel=False):
     elif isa(x[0], Symbol) and x[0] in macro_table:
         return expand(macro_table[x[0]](*x[1:]), toplevel) # (m arg...) 
     else:                                #        => macroexpand if m isa macro
-        return map(expand, x)            # (f arg...) => expand each
+        return [expand(e) for e in x]            # (f arg...) => expand each
 
 def require(x, predicate, msg="wrong length"):
     "Signal a syntax error if predicate is false."
@@ -298,7 +298,7 @@ def let(*args):
     require(x, all(isa(b, list) and len(b)==2 and isa(b[0], Symbol)
                    for b in bindings), "illegal binding list")
     vars, vals = zip(*bindings)
-    return [[_lambda, list(vars)]+map(expand, body)] + map(expand, vals)
+    return [[_lambda, list(vars)]+[expand(e) for e in body]] + [expand(e) for e in vals]
 
 macro_table = {_let:let} ## More macros can go here
 
