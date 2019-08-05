@@ -124,10 +124,7 @@ def atom(token):
         try:
             return float(token)
         except ValueError:
-            try:
-                return complex(token.replace("i", "j", 1))
-            except ValueError:
-                return Sym(token)
+            return Sym(token)
 
 
 def to_string(x):
@@ -142,8 +139,6 @@ def to_string(x):
         return '"%s"' % x.encode("string_escape").replace('"', r"\"")
     elif isa(x, list):
         return "(" + " ".join(map(to_string, x)) + ")"
-    elif isa(x, complex):
-        return str(x).replace("j", "i")
     else:
         return str(x)
 
@@ -225,10 +220,9 @@ def callcc(proc):
 
 def add_globals(self):
     "Add some Scheme standard procedures."
-    import math, cmath, operator as op
+    import math, operator as op
 
     self.update(vars(math))
-    self.update(vars(cmath))
     self.update(
         {
             "+": op.add,

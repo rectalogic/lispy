@@ -114,8 +114,6 @@ lispy_tests = [
          (+ 5 (* 10 (call/cc (lambda (escape) (* 100 1))))))) ; 0 levels""",
         1005,
     ),
-    ("(* 1i 1i)", -1),
-    ("(sqrt -1)", 1j),
     ("(let ((a 1) (b 2)) (+ a b))", 3),
     ("(let ((a 1) (b 2 3)) (+ a b))", SyntaxError),
     ("(and 1 2 3)", 3),
