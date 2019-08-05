@@ -248,20 +248,10 @@ def add_globals(self):
             "symbol?": lambda x: isa(x, Symbol),
             "boolean?": lambda x: isa(x, bool),
             "pair?": is_pair,
-            "port?": lambda x: isa(x, file),
             "apply": lambda proc, l: proc(*l),
             "eval": lambda x: eval(expand(x)),
-            "load": lambda fn: load(fn),
             "call/cc": callcc,
-            "open-input-file": open,
-            "close-input-port": lambda p: p.file.close(),
-            "open-output-file": lambda f: open(f, "w"),
-            "close-output-port": lambda p: p.close(),
-            "eof-object?": lambda x: x is eof_object,
-            "read-char": readchar,
-            "read": read,
-            "write": lambda x, port=sys.stdout: port.write(to_string(x)),
-            "display": lambda x, port=sys.stdout: port.write(
+            "display": lambda x: sys.stdout.write(
                 x if isa(x, str) else to_string(x)
             ),
         }
