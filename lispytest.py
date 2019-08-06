@@ -144,12 +144,12 @@ lispy_tests = [
 ]
 
 
-def test(tests, name=""):
+def test(lispy, tests, name=""):
     "For each (exp, expected) test case, see if eval(parse(exp)) == expected."
     fails = 0
     for (x, expected) in tests:
         try:
-            result = eval(parse(x))
+            result = lispy.eval(lispy.parse(x))
             print(x, "=>", to_string(result))
             ok = result == expected
         except Exception as e:
@@ -168,4 +168,4 @@ def test(tests, name=""):
 if __name__ == "__main__":
     from lispy import *
 
-    test(lis_tests + lispy_tests, "lispy.py")
+    test(Lispy(), lis_tests + lispy_tests, "lispy.py")
