@@ -417,6 +417,14 @@ eval(
    (if (null? args) #t
        (if (= (length args) 1) (car args)
            `(if ,(car args) (and ,@(cdr args)) #f)))))
+(define-macro or (lambda args
+   (if (null? args) #f
+       (if (= (length args) 1) (car args)
+           `(if (not ,(car args)) (or ,@(cdr args)) #t)))))
+(define-macro when (lambda args
+  `(if ,(car args) (begin ,@(cdr args)))))
+(define-macro unless (lambda args
+  `(if (not ,(car args)) (begin ,@(cdr args)))))
 
 ;; More macros can also go here
 
