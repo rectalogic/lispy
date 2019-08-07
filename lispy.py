@@ -9,14 +9,18 @@ import math, operator as op
 from io import StringIO
 
 isa = isinstance
+sentinel = object()
 
 
 class Lispy:
-    def __init__(self, env=None):
+    def __init__(self, env=None, dotaccess={}):
+        self.dotaccess = dotaccess
         self.symbol_table = SymbolTable()
-        self.global_env = env if env is not None else Env()
+        self.global_env = Env(outer=env)
         self.add_globals()
-        self.macro_table = {SymbolTable._let: self.macro_let}  ## More macros can go here
+        self.macro_table = {
+            SymbolTable._let: self.macro_let
+        }  ## More macros can go here
 
         self.eval(
             self.parse(
@@ -44,7 +48,7 @@ class Lispy:
 
     def add_globals(self):
         "Add some Scheme standard procedures."
-    
+
         self.global_env.update(vars(math))
         self.global_env.update(
             {
@@ -77,6 +81,7 @@ class Lispy:
                 "display": lambda x: sys.stdout.write(
                     x if isa(x, str) else to_string(x)
                 ),
+                ".": self.proc_dot,
             }
         )
 
@@ -95,6 +100,14 @@ class Lispy:
                 return float(token)
             except ValueError:
                 return self.symbol_table.symbolize(token)
+
+    def proc_dot(self, obj, attr, value=sentinel):
+        if type(obj) in self.dotaccess and attr in self.dotaccess[type(obj)]:
+            if value is sentinel:
+                return getattr(obj, attr)
+            else:
+                return setattr(obj, attr, value)
+        raise TypeError("Access not allowed to %s.%s" % (obj, attr))
 
     def macro_let(self, *args):
         args = list(args)
@@ -327,25 +340,27 @@ class SymbolTable(dict):
     _let = Symbol("let")
 
     eof = Symbol("#<eof-object>")  # Note: uninterned; can't be read
-    
+
     quotes = {"'": _quote, "`": _quasiquote, ",": _unquote, ",@": _unquotesplicing}
 
     def __init__(self):
-        super().__init__((
-            (self._quote, self._quote),
-            (self._if, self._if),
-            (self._set, self._set),
-            (self._define, self._define),
-            (self._lambda, self._lambda),
-            (self._begin, self._begin),
-            (self._definemacro, self._definemacro),
-            (self._quasiquote, self._quasiquote),
-            (self._unquote, self._unquote),
-            (self._unquotesplicing, self._unquotesplicing),
-            (self._append, self._append),
-            (self._cons, self._cons),
-            (self._let, self._let),
-        ))
+        super().__init__(
+            (
+                (self._quote, self._quote),
+                (self._if, self._if),
+                (self._set, self._set),
+                (self._define, self._define),
+                (self._lambda, self._lambda),
+                (self._begin, self._begin),
+                (self._definemacro, self._definemacro),
+                (self._quasiquote, self._quasiquote),
+                (self._unquote, self._unquote),
+                (self._unquotesplicing, self._unquotesplicing),
+                (self._append, self._append),
+                (self._cons, self._cons),
+                (self._let, self._let),
+            )
+        )
 
     def symbolize(self, s):
         if s not in self:
@@ -416,12 +431,11 @@ def require(x, predicate, msg="wrong length"):
 
 def load(filename):
     "Eval every expression from a file."
-    repl(None, InPort(open(filename)), None)
+    repl(Lispy(), None, InPort(open(filename)), None)
 
 
-def repl(prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
+def repl(lispy, prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
     "A prompt-read-eval-print loop."
-    lispy = Lispy()
     print("Lispy version 2.0", file=sys.stderr)
     while True:
         try:
@@ -438,4 +452,4 @@ def repl(prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
 
 
 if __name__ == "__main__":
-    repl()
+    repl(Lispy())

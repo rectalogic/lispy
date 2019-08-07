@@ -141,6 +141,30 @@ lispy_tests = [
      3) ; final comment""",
         [1, 2, 3],
     ),
+    ("(. native 'count)", 7),
+    ("(. native 'private)", TypeError),
+    (
+        """(begin
+            ((. native 'adder) 4)
+            (. native 'count)
+        )""",
+        11,
+    ),
+    (
+        """(begin
+            (. native 'count 44)
+            (. native 'count)
+        )""",
+        44,
+    ),
+    ("(. native 'name)", "native"),
+    (
+        """(begin
+            (. native 'name "changed")
+            (. native 'name)
+        )""",
+        "changed",
+    ),
 ]
 
 
@@ -165,7 +189,31 @@ def test(lispy, tests, name=""):
     print("%s %s: %d out of %d tests fail." % ("*" * 45, name, fails, len(tests)))
 
 
-if __name__ == "__main__":
-    from lispy import *
+class Native:
+    def __init__(self):
+        self._count = 7
+        self.name = "native"
 
-    test(Lispy(), lis_tests + lispy_tests, "lispy.py")
+    @property
+    def count(self):
+        return self._count
+
+    @count.setter
+    def count(self, v):
+        self._count = v
+
+    def adder(self, v):
+        self._count += v
+
+    def private(self):
+        pass
+
+
+if __name__ == "__main__":
+    from lispy import Lispy, Env, to_string
+
+    lispy = Lispy(
+        env=Env(("native",), (Native(),)),
+        dotaccess={Native: {"count", "name", "adder"}},
+    )
+    test(lispy, lis_tests + lispy_tests, "lispy.py")
