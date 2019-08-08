@@ -1,6 +1,6 @@
 ################ Tests for lis.py and lispy.py
 
-lis_tests = [
+lispy_tests = [
     ("(quote (testing 1 (2.0) -3.14e159))", ["testing", 1, [2.0], -3.14e159]),
     ("(+ 2 2)", 4),
     ("(+ (* 2 100) (* 1 10))", 210),
@@ -47,9 +47,7 @@ lis_tests = [
         "(riff-shuffle (riff-shuffle (riff-shuffle (list 1 2 3 4 5 6 7 8))))",
         [1, 2, 3, 4, 5, 6, 7, 8],
     ),
-]
 
-lispy_tests = [
     ("()", SyntaxError),
     ("(set! x)", SyntaxError),
     ("(define 3 4)", SyntaxError),
@@ -216,4 +214,4 @@ if __name__ == "__main__":
         env=Env(("native",), (Native(),)),
         dotaccess={Native: {"count", "name", "adder"}},
     )
-    test(lispy, lis_tests + lispy_tests, "lispy.py")
+    test(lispy, lispy_tests, "lispy.py")

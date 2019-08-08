@@ -3,17 +3,26 @@
 ## (c) Peter Norvig, 2010; See http://norvig.com/lispy2.html
 
 ################ Symbol, Procedure, classes
-
+from __future__ import annotations
+import typing as ta
 import re, sys
 import math, operator as op
 from io import StringIO
 
-isa = isinstance
 sentinel = object()
+
+if ta.TYPE_CHECKING:
+    Atom = ta.Union[bool, str, int, float, Symbol]
+    # https://github.com/python/mypy/issues/731
+    AtomList = ta.List[Atom, AtomList]  # type: ignore
 
 
 class Lispy:
-    def __init__(self, env=None, dotaccess={}):
+    def __init__(
+        self,
+        env: ta.Optional[Env] = None,
+        dotaccess: ta.Dict[ta.Type, ta.Set[str]] = {},
+    ):
         self.dotaccess = dotaccess
         self.symbol_table = SymbolTable()
         self.global_env = Env(outer=env)
@@ -70,22 +79,22 @@ class Lispy:
                 "cdr": lambda x: x[1:],
                 "append": op.add,
                 "list": lambda *x: list(x),
-                "list?": lambda x: isa(x, list),
+                "list?": lambda x: isinstance(x, list),
                 "null?": lambda x: x == [],
-                "symbol?": lambda x: isa(x, Symbol),
-                "boolean?": lambda x: isa(x, bool),
+                "symbol?": lambda x: isinstance(x, Symbol),
+                "boolean?": lambda x: isinstance(x, bool),
                 "pair?": is_pair,
                 "apply": lambda proc, l: proc(*l),
                 "eval": lambda x: self.eval(self.expand(x)),
                 "call/cc": callcc,
                 "display": lambda x: sys.stdout.write(
-                    x if isa(x, str) else to_string(x)
+                    x if isinstance(x, str) else to_string(x)
                 ),
                 ".": self.proc_dot,
             }
         )
 
-    def atom(self, token):
+    def atom(self, token: str) -> Atom:
         'Numbers become numbers; #t and #f are booleans; "..." string; otherwise Symbol.'
         if token == "#t":
             return True
@@ -101,7 +110,7 @@ class Lispy:
             except ValueError:
                 return self.symbol_table.symbolize(token)
 
-    def proc_dot(self, obj, attr, value=sentinel):
+    def proc_dot(self, obj: ta.Any, attr: str, value: ta.Any = sentinel):
         if type(obj) in self.dotaccess and attr in self.dotaccess[type(obj)]:
             if value is sentinel:
                 return getattr(obj, attr)
@@ -116,7 +125,10 @@ class Lispy:
         bindings, body = args[0], args[1:]
         require(
             x,
-            all(isa(b, list) and len(b) == 2 and isa(b[0], Symbol) for b in bindings),
+            all(
+                isinstance(b, list) and len(b) == 2 and isinstance(b[0], Symbol)
+                for b in bindings
+            ),
             "illegal binding list",
         )
         vars, vals = zip(*bindings)
@@ -124,12 +136,12 @@ class Lispy:
             self.expand(e) for e in vals
         ]
 
-    def read(self, inport):
+    def read(self, inport: InPort) -> ta.Union[Atom, AtomList]:
         "Read a Scheme expression from an input port."
 
-        def read_ahead(token):
+        def read_ahead(token: str) -> ta.Union[Atom, AtomList]:
             if "(" == token:
-                L = []
+                L: AtomList = []
                 while True:
                     token = inport.next_token()
                     if token == ")":
@@ -149,17 +161,17 @@ class Lispy:
         token1 = inport.next_token()
         return SymbolTable.eof if token1 is SymbolTable.eof else read_ahead(token1)
 
-    def parse(self, inport):
+    def parse(self, inport: ta.Union[InPort, str]):
         "Parse a program: read and expand/error-check it."
         # Backwards compatibility: given a str, convert it to an InPort
         if isinstance(inport, str):
             inport = InPort(StringIO(inport))
         return self.expand(self.read(inport), toplevel=True)
 
-    def expand(self, x, toplevel=False):
+    def expand(self, x, toplevel: bool = False):
         "Walk tree of x, making optimizations/fixes, and signaling SyntaxError."
         require(x, x != [])  # () => Error
-        if not isa(x, list):  # constant => unchanged
+        if not isinstance(x, list):  # constant => unchanged
             return x
         elif x[0] is SymbolTable._quote:  # (quote exp)
             require(x, len(x) == 2)
@@ -172,17 +184,18 @@ class Lispy:
         elif x[0] is SymbolTable._set:
             require(x, len(x) == 3)
             var = x[1]  # (set! non-var exp) => Error
-            require(x, isa(var, Symbol), "can set! only a symbol")
+            require(x, isinstance(var, Symbol), "can set! only a symbol")
             return [SymbolTable._set, var, self.expand(x[2])]
         elif x[0] is SymbolTable._define or x[0] is SymbolTable._definemacro:
             require(x, len(x) >= 3)
             define, v, body = x[0], x[1], x[2:]
-            if isa(v, list) and v:  # (define (f args) body)
+            if isinstance(v, list) and v:  # (define (f args) body)
                 f, args = v[0], v[1:]  #  => (define f (lambda (args) body))
                 return self.expand([define, f, [SymbolTable._lambda, args] + body])
             else:
                 require(x, len(x) == 3)  # (define non-var/list exp) => Error
-                require(x, isa(v, Symbol), "can define only a symbol")
+                require(x, isinstance(v, Symbol), "can define only a symbol")
+                v = ta.cast(Symbol, v)
                 exp = self.expand(x[2])
                 if define is SymbolTable._definemacro:
                     require(x, toplevel, "define-macro only allowed at top level")
@@ -201,8 +214,8 @@ class Lispy:
             vars, body = x[1], x[2:]
             require(
                 x,
-                (isa(vars, list) and all(isa(v, Symbol) for v in vars))
-                or isa(vars, Symbol),
+                (isinstance(vars, list) and all(isinstance(v, Symbol) for v in vars))
+                or isinstance(vars, Symbol),
                 "illegal lambda argument list",
             )
             exp = body[0] if len(body) == 1 else [SymbolTable._begin] + body
@@ -210,19 +223,19 @@ class Lispy:
         elif x[0] is SymbolTable._quasiquote:  # `x => expand_quasiquote(x)
             require(x, len(x) == 2)
             return expand_quasiquote(x[1])
-        elif isa(x[0], Symbol) and x[0] in self.macro_table:
+        elif isinstance(x[0], Symbol) and x[0] in self.macro_table:
             return self.expand(self.macro_table[x[0]](*x[1:]), toplevel)  # (m arg...)
-        else:  #        => macroexpand if m isa macro
+        else:  #        => macroexpand if m isinstance macro
             return [self.expand(e) for e in x]  # (f arg...) => expand each
 
-    def eval(self, x, env=None):
+    def eval(self, x, env: ta.Optional[Env] = None):
         "Evaluate an expression in an environment."
         if env is None:
             env = self.global_env
         while True:
-            if isa(x, Symbol):  # variable reference
+            if isinstance(x, Symbol):  # variable reference
                 return env.find(x)[x]
-            elif not isa(x, list):  # constant literal
+            elif not isinstance(x, list):  # constant literal
                 return x
             elif x[0] is SymbolTable._quote:  # (quote exp)
                 (_, exp) = x
@@ -248,24 +261,35 @@ class Lispy:
             else:  # (proc exp*)
                 exps = [self.eval(exp, env) for exp in x]
                 proc = exps.pop(0)
-                if isa(proc, Procedure):
+                if isinstance(proc, Procedure):
                     x = proc.exp
                     env = Env(proc.parms, exps, proc.env)
                 else:
                     return proc(*exps)
 
 
-def is_pair(x):
-    return x != [] and isa(x, list)
+def is_pair(x) -> bool:
+    return x != [] and isinstance(x, list)
 
 
-def cons(x, y):
+def cons(x: Atom, y):
     return [x] + y
 
 
-def callcc(proc):
+class Escape(RuntimeWarning):
+    retval: ta.Any
+
+    def __init__(
+        self, msg: str = "Sorry, can't continue this continuation any longer."
+    ):
+        super().__init__(msg)
+        self.retval = None
+
+
+def callcc(proc: Procedure):
     "Call proc with current continuation; escape only"
-    ball = RuntimeWarning("Sorry, can't continue this continuation any longer.")
+
+    ball = Escape()
 
     def throw(retval):
         ball.retval = retval
@@ -273,11 +297,10 @@ def callcc(proc):
 
     try:
         return proc(throw)
-    except RuntimeWarning as w:
+    except Escape as w:
         if w is ball:
             return ball.retval
-        else:
-            raise w
+        raise w
 
 
 def expand_quasiquote(x):
@@ -298,10 +321,15 @@ def expand_quasiquote(x):
 class Env(dict):
     "An environment: a dict of {'var':val} pairs, with an outer Env."
 
-    def __init__(self, parms=(), args=(), outer=None):
+    def __init__(
+        self,
+        parms: ta.Union[str, ta.Tuple[str, ...]] = (),
+        args: ta.Sequence = (),
+        outer: ta.Optional[Env] = None,
+    ):
         # Bind parm list to corresponding args, or single parm to list of args
         self.outer = outer
-        if isa(parms, Symbol):
+        if isinstance(parms, Symbol):
             self.update({parms: list(args)})
         else:
             if len(args) != len(parms):
@@ -310,7 +338,7 @@ class Env(dict):
                 )
             self.update(zip(parms, args))
 
-    def find(self, var):
+    def find(self, var) -> Env:
         "Find the innermost Env where var appears."
         if var in self:
             return self
@@ -362,43 +390,53 @@ class SymbolTable(dict):
             )
         )
 
-    def symbolize(self, s):
+    def symbolize(self, s: str) -> Symbol:
         if s not in self:
             self[s] = Symbol(s)
         return self[s]
 
 
-class Procedure(object):
+class Procedure:
     "A user-defined Scheme procedure."
 
-    def __init__(self, lispy, parms, exp, env):
+    def __init__(
+        self,
+        lispy: Lispy,
+        parms: ta.Union[Symbol, ta.Tuple[Symbol, ...]],
+        exp: ta.Sequence,
+        env: Env,
+    ):
         self.lispy, self.parms, self.exp, self.env = lispy, parms, exp, env
 
     def __call__(self, *args):
         return self.lispy.eval(self.exp, Env(self.parms, args, self.env))
 
 
-class InPort(object):
+class InPort:
     "An input port. Retains a line of chars."
-    tokenizer = r"""\s*(,@|[('`,)]|"(?:[\\].|[^\\"])*"|;.*|[^\s('"`,;)]*)(.*)"""
+    tokenizer = re.compile(
+        r"""\s*(,@|[('`,)]|"(?:[\\].|[^\\"])*"|;.*|[^\s('"`,;)]*)(.*)"""
+    )
 
     def __init__(self, file):
         self.file = file
         self.line = ""
 
-    def next_token(self):
+    def next_token(self) -> ta.Union[str, Symbol]:
         "Return the next token, reading new text into line buffer if needed."
         while True:
             if self.line == "":
                 self.line = self.file.readline()
             if self.line == "":
                 return SymbolTable.eof
-            token, self.line = re.match(InPort.tokenizer, self.line).groups()
-            if token != "" and not token.startswith(";"):
-                return token
+            match = InPort.tokenizer.match(self.line)
+            if match:
+                token, self.line = match.groups()
+                if token != "" and not token.startswith(";"):
+                    return token
 
 
-def readchar(inport):
+def readchar(inport: InPort) -> ta.Union[str, Symbol]:
     "Read the next character from an input port."
     if inport.line != "":
         ch, inport.line = inport.line[0], inport.line[1:]
@@ -407,17 +445,17 @@ def readchar(inport):
         return inport.file.read(1) or SymbolTable.eof
 
 
-def to_string(x):
+def to_string(x: ta.Any) -> str:
     "Convert a Python object back into a Lisp-readable string."
     if x is True:
         return "#t"
     elif x is False:
         return "#f"
-    elif isa(x, Symbol):
+    elif isinstance(x, Symbol):
         return x
-    elif isa(x, str):
+    elif isinstance(x, str):
         return '"%s"' % x.encode("unicode_escape").decode("utf-8").replace('"', r"\"")
-    elif isa(x, list):
+    elif isinstance(x, list):
         return "(" + " ".join(map(to_string, x)) + ")"
     else:
         return str(x)
@@ -429,12 +467,12 @@ def require(x, predicate, msg="wrong length"):
         raise SyntaxError(to_string(x) + ": " + msg)
 
 
-def load(filename):
+def load(filename: str):
     "Eval every expression from a file."
     repl(Lispy(), None, InPort(open(filename)), None)
 
 
-def repl(lispy, prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
+def repl(lispy: Lispy, prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
     "A prompt-read-eval-print loop."
     print("Lispy version 2.0", file=sys.stderr)
     while True:
