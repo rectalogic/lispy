@@ -1,0 +1,4 @@
+.mypy_cache/
+.tox/
+__pycache__/
+lispy.egg-info/

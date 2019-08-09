@@ -2,13 +2,13 @@
 
 ## (c) Peter Norvig, 2010; See http://norvig.com/lispy2.html
 
-################ Symbol, Procedure, classes
 from __future__ import annotations
 import typing as ta
 import re, sys
 import math, operator as op
 from io import StringIO
 
+__version__ = "0.3"
 sentinel = object()
 
 if ta.TYPE_CHECKING:
