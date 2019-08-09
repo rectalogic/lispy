@@ -40,20 +40,20 @@ def interpreter():
         ("(list (abs -3) (abs 0) (abs 3))", [3, 0, 3]),
         (
             """(define combine (lambda (f)
-    (lambda (x y)
-      (if (null? x) (quote ())
-          (f (list (car x) (car y))
-             ((combine f) (cdr x) (cdr y)))))))""",
+            (lambda (x y)
+            (if (null? x) (quote ())
+                (f (list (car x) (car y))
+                    ((combine f) (cdr x) (cdr y)))))))""",
             None,
         ),
         ("(define zip (combine cons))", None),
         ("(zip (list 1 2 3 4) (list 5 6 7 8))", [[1, 5], [2, 6], [3, 7], [4, 8]]),
         (
             """(define riff-shuffle (lambda (deck) (begin
-    (define take (lambda (n seq) (if (<= n 0) (quote ()) (cons (car seq) (take (- n 1) (cdr seq))))))
-    (define drop (lambda (n seq) (if (<= n 0) seq (drop (- n 1) (cdr seq)))))
-    (define mid (lambda (seq) (/ (length seq) 2)))
-    ((combine append) (take (mid deck) deck) (drop (mid deck) deck)))))""",
+            (define take (lambda (n seq) (if (<= n 0) (quote ()) (cons (car seq) (take (- n 1) (cdr seq))))))
+            (define drop (lambda (n seq) (if (<= n 0) seq (drop (- n 1) (cdr seq)))))
+            (define mid (lambda (seq) (/ (length seq) 2)))
+            ((combine append) (take (mid deck) deck) (drop (mid deck) deck)))))""",
             None,
         ),
         ("(riff-shuffle (list 1 2 3 4 5 6 7 8))", [1, 5, 2, 6, 3, 7, 4, 8]),
@@ -71,7 +71,7 @@ def interpreter():
         ("(lambda (x))", SyntaxError),
         (
             """(if (= 1 2) (define-macro a 'a) 
-     (define-macro a 'b))""",
+            (define-macro a 'b))""",
             SyntaxError,
         ),
         ("(define (twice x) (* 2 x))", None),
@@ -88,14 +88,14 @@ def interpreter():
         ("(a1 10)", 120),
         (
             """(define (newton guess function derivative epsilon)
-    (define guess2 (- guess (/ (function guess) (derivative guess))))
-    (if (< (abs (- guess guess2)) epsilon) guess2
-        (newton guess2 function derivative epsilon)))""",
+            (define guess2 (- guess (/ (function guess) (derivative guess))))
+            (if (< (abs (- guess guess2)) epsilon) guess2
+                (newton guess2 function derivative epsilon)))""",
             None,
         ),
         (
             """(define (square-root a)
-    (newton 1 (lambda (x) (- (* x x) a)) (lambda (x) (* 2 x)) 1e-8))""",
+            (newton 1 (lambda (x) (- (* x x) a)) (lambda (x) (* 2 x)) 1e-8))""",
             None,
         ),
         ("(> (square-root 200.) 14.14213)", True),
@@ -103,9 +103,9 @@ def interpreter():
         ("(= (square-root 200.) (sqrt 200.))", True),
         (
             """(define (sum-squares-range start end)
-         (define (sumsq-acc start end acc)
-            (if (> start end) acc (sumsq-acc (+ start 1) end (+ (* start start) acc))))
-         (sumsq-acc start end 0))""",
+                (define (sumsq-acc start end acc)
+                    (if (> start end) acc (sumsq-acc (+ start 1) end (+ (* start start) acc))))
+                (sumsq-acc start end 0))""",
             None,
         ),
         ("(sum-squares-range 1 3000)", 9004500500),  ## Tests tail recursion
@@ -113,17 +113,17 @@ def interpreter():
         ("(call/cc (lambda (throw) (+ 5 (* 10 1)))) ;; do not throw", 15),
         (
             """(call/cc (lambda (throw) 
-         (+ 5 (* 10 (call/cc (lambda (escape) (* 100 (escape 3)))))))) ; 1 level""",
+                (+ 5 (* 10 (call/cc (lambda (escape) (* 100 (escape 3)))))))) ; 1 level""",
             35,
         ),
         (
             """(call/cc (lambda (throw) 
-         (+ 5 (* 10 (call/cc (lambda (escape) (* 100 (throw 3)))))))) ; 2 levels""",
+                (+ 5 (* 10 (call/cc (lambda (escape) (* 100 (throw 3)))))))) ; 2 levels""",
             3,
         ),
         (
             """(call/cc (lambda (throw) 
-         (+ 5 (* 10 (call/cc (lambda (escape) (* 100 1))))))) ; 0 levels""",
+                (+ 5 (* 10 (call/cc (lambda (escape) (* 100 1))))))) ; 0 levels""",
             1005,
         ),
         ("(let ((a 1) (b 2)) (+ a b))", 3),
@@ -148,9 +148,9 @@ def interpreter():
         ("`,@L", SyntaxError),
         (
             """'(1 ;test comments '
-     ;skip this line
-     2 ; more ; comments ; ) )
-     3) ; final comment""",
+            ;skip this line
+            2 ; more ; comments ; ) )
+            3) ; final comment""",
             [1, 2, 3],
         ),
         ("(. native 'count)", 7),
@@ -159,14 +159,14 @@ def interpreter():
             """(begin
             ((. native 'adder) 4)
             (. native 'count)
-        )""",
+            )""",
             11,
         ),
         (
             """(begin
             (. native 'count 44)
             (. native 'count)
-        )""",
+            )""",
             44,
         ),
         ("(. native 'name)", "native"),
@@ -174,7 +174,7 @@ def interpreter():
             """(begin
             (. native 'name "changed")
             (. native 'name)
-        )""",
+            )""",
             "changed",
         ),
     ],

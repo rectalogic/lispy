@@ -291,9 +291,9 @@ class Lispy:
                 else:
                     return proc(*exps)
 
-    def load(self, filename: str):
-        "Eval every expression from a file."
-        self.repl(None, InPort(open(filename)), None)
+    def load(self, expressions: str):
+        "Eval every expression."
+        return self.eval(self.parse(expressions))
 
     def repl(self, prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
         "A prompt-read-eval-print loop."
