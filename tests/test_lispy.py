@@ -6,8 +6,7 @@ import lispy
 @pytest.fixture(scope="module")
 def interpreter():
     return lispy.Lispy(
-        env=lispy.Env(("native",), (Native(),)),
-        dotaccess={Native: {"count", "name", "adder"}},
+        env=lispy.Env(native=Native()), dotaccess={Native: {"count", "name", "adder"}}
     )
 
 

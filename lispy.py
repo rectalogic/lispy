@@ -17,6 +17,30 @@ if ta.TYPE_CHECKING:
     AtomList = ta.List[Atom, AtomList]  # type: ignore
 
 
+class InPort:
+    "An input port. Retains a line of chars."
+    tokenizer = re.compile(
+        r"""\s*(,@|[('`,)]|"(?:[\\].|[^\\"])*"|;.*|[^\s('"`,;)]*)(.*)"""
+    )
+
+    def __init__(self, file):
+        self.file = file
+        self.line = ""
+
+    def next_token(self) -> ta.Union[str, Symbol]:
+        "Return the next token, reading new text into line buffer if needed."
+        while True:
+            if self.line == "":
+                self.line = self.file.readline()
+            if self.line == "":
+                return SymbolTable.eof
+            match = InPort.tokenizer.match(self.line)
+            if match:
+                token, self.line = match.groups()
+                if token != "" and not token.startswith(";"):
+                    return token
+
+
 class Lispy:
     def __init__(
         self,
@@ -267,6 +291,26 @@ class Lispy:
                 else:
                     return proc(*exps)
 
+    def load(self, filename: str):
+        "Eval every expression from a file."
+        self.repl(None, InPort(open(filename)), None)
+
+    def repl(self, prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
+        "A prompt-read-eval-print loop."
+        print("Lispy version 2.0", file=sys.stderr)
+        while True:
+            try:
+                if prompt:
+                    print(prompt, file=sys.stderr, end="", flush=True)
+                x = self.parse(inport)
+                if x is SymbolTable.eof:
+                    return
+                val = self.eval(x)
+                if val is not None and out:
+                    print(to_string(val), file=out)
+            except Exception as e:
+                print("%s: %s" % (type(e).__name__, e))
+
 
 def is_pair(x) -> bool:
     return x != [] and isinstance(x, list)
@@ -326,7 +370,10 @@ class Env(dict):
         parms: ta.Union[str, ta.Tuple[str, ...]] = (),
         args: ta.Sequence = (),
         outer: ta.Optional[Env] = None,
+        **kwargs,
     ):
+        if kwargs:
+            super().__init__(**kwargs)
         # Bind parm list to corresponding args, or single parm to list of args
         self.outer = outer
         if isinstance(parms, Symbol):
@@ -412,39 +459,6 @@ class Procedure:
         return self.lispy.eval(self.exp, Env(self.parms, args, self.env))
 
 
-class InPort:
-    "An input port. Retains a line of chars."
-    tokenizer = re.compile(
-        r"""\s*(,@|[('`,)]|"(?:[\\].|[^\\"])*"|;.*|[^\s('"`,;)]*)(.*)"""
-    )
-
-    def __init__(self, file):
-        self.file = file
-        self.line = ""
-
-    def next_token(self) -> ta.Union[str, Symbol]:
-        "Return the next token, reading new text into line buffer if needed."
-        while True:
-            if self.line == "":
-                self.line = self.file.readline()
-            if self.line == "":
-                return SymbolTable.eof
-            match = InPort.tokenizer.match(self.line)
-            if match:
-                token, self.line = match.groups()
-                if token != "" and not token.startswith(";"):
-                    return token
-
-
-def readchar(inport: InPort) -> ta.Union[str, Symbol]:
-    "Read the next character from an input port."
-    if inport.line != "":
-        ch, inport.line = inport.line[0], inport.line[1:]
-        return ch
-    else:
-        return inport.file.read(1) or SymbolTable.eof
-
-
 def to_string(x: ta.Any) -> str:
     "Convert a Python object back into a Lisp-readable string."
     if x is True:
@@ -467,27 +481,5 @@ def require(x, predicate, msg="wrong length"):
         raise SyntaxError(to_string(x) + ": " + msg)
 
 
-def load(filename: str):
-    "Eval every expression from a file."
-    repl(Lispy(), None, InPort(open(filename)), None)
-
-
-def repl(lispy: Lispy, prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
-    "A prompt-read-eval-print loop."
-    print("Lispy version 2.0", file=sys.stderr)
-    while True:
-        try:
-            if prompt:
-                print(prompt, file=sys.stderr, end="", flush=True)
-            x = lispy.parse(inport)
-            if x is SymbolTable.eof:
-                return
-            val = lispy.eval(x)
-            if val is not None and out:
-                print(to_string(val), file=out)
-        except Exception as e:
-            print("%s: %s" % (type(e).__name__, e))
-
-
 if __name__ == "__main__":
-    repl(Lispy())
+    Lispy().repl()
