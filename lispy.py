@@ -4,9 +4,13 @@
 
 from __future__ import annotations
 import typing as ta
-import re, sys
-import math, operator as op
+import re
+import sys
+import math
+import operator as op
+import time
 from io import StringIO
+from contextlib import contextmanager
 
 __version__ = "0.3"
 sentinel = object()
@@ -48,6 +52,7 @@ class Lispy:
         dotaccess: ta.Dict[ta.Type, ta.Set[str]] = {},
     ):
         self.dotaccess = dotaccess
+        self.limit = None
         self.symbol_table = SymbolTable()
         self.global_env = Env(outer=env)
         self.add_globals()
@@ -257,6 +262,10 @@ class Lispy:
         if env is None:
             env = self.global_env
         while True:
+            # Limit runtime
+            if self.limit:
+                self.limit.check()
+
             if isinstance(x, Symbol):  # variable reference
                 return env.find(x)[x]
             elif not isinstance(x, list):  # constant literal
@@ -291,9 +300,18 @@ class Lispy:
                 else:
                     return proc(*exps)
 
-    def load(self, expressions: str):
+    @contextmanager
+    def limited(self, limit: ta.Optional[Limit]):
+        try:
+            self.limit = limit
+            yield
+        finally:
+            self.limit = None
+
+    def load(self, expressions: str, limit: ta.Optional[Limit] = None):
         "Eval every expression."
-        return self.eval(self.parse(expressions))
+        with self.limited(limit):
+            return self.eval(self.parse(expressions))
 
     def repl(self, prompt="lispy> ", inport=InPort(sys.stdin), out=sys.stdout):
         "A prompt-read-eval-print loop."
@@ -455,8 +473,26 @@ class Procedure:
     ):
         self.lispy, self.parms, self.exp, self.env = lispy, parms, exp, env
 
+    def limit_call(self, *args, limit: ta.Optional[Limit] = None):
+        with self.lispy.limited(limit):
+            self(*args)
+
     def __call__(self, *args):
         return self.lispy.eval(self.exp, Env(self.parms, args, self.env))
+
+
+class Limit:
+    def __init__(self, time_limit: float):
+        self.start_time = time.perf_counter()
+        self.time_limit = time_limit
+
+    def check(self):
+        if (time.perf_counter() - self.start_time) >= self.time_limit:
+            raise LimitError("time limit exceeded")
+
+
+class LimitError(RuntimeError):
+    pass
 
 
 def to_string(x: ta.Any) -> str:
