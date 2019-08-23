@@ -119,6 +119,7 @@ class Lispy:
                 "display": lambda x: sys.stdout.write(
                     x if isinstance(x, str) else to_string(x)
                 ),
+                "format": lambda f, *x: str(f) % tuple(x),
                 ".": self.proc_dot,
             }
         )

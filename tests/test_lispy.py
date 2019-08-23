@@ -199,6 +199,11 @@ def interpreter():
         ),
         ("(define (infinite) (infinite))", None, None),
         ("(infinite))", 1, lispy.LimitError),
+        (
+            """(format "now is the %s for all %d men" "time" 33)""",
+            None,
+            "now is the time for all 33 men",
+        ),
     ],
 )
 def test_expressions(interpreter, expression, limit, expected):
