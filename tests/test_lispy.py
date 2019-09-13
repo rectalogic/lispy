@@ -204,6 +204,9 @@ def interpreter():
             None,
             "now is the time for all 33 men",
         ),
+        ("(contains (list 1 2 3) 2)", None, True),
+        ("(contains (list 1 2 3) 7)", None, False),
+        ("(contains 7 7)", None, SyntaxError),
     ],
 )
 def test_expressions(interpreter, expression, limit, expected):

@@ -107,6 +107,7 @@ class Lispy:
                 "car": lambda x: x[0],
                 "cdr": lambda x: x[1:],
                 "append": op.add,
+                "contains": contains,
                 "list": lambda *x: list(x),
                 "list?": lambda x: isinstance(x, list),
                 "null?": lambda x: x == [],
@@ -379,6 +380,11 @@ def expand_quasiquote(x):
         return [SymbolTable._append, x[0][1], expand_quasiquote(x[1:])]
     else:
         return [SymbolTable._cons, expand_quasiquote(x[0]), expand_quasiquote(x[1:])]
+
+
+def contains(l, x):
+    require(l, isinstance(l, list), "expected list")
+    return x in l
 
 
 class Env(dict):
