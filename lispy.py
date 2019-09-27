@@ -147,7 +147,7 @@ class Lispy:
                 return getattr(obj, attr)
             else:
                 return setattr(obj, attr, value)
-        raise TypeError("Access not allowed to %s.%s" % (obj, attr))
+        raise TypeError("Access not allowed to %s.%s" % (type(obj), attr))
 
     def macro_let(self, *args):
         args = list(args)
@@ -178,7 +178,10 @@ class Lispy:
                     if token == ")":
                         return L
                     else:
-                        L.append(read_ahead(token))
+                        try:
+                            L.append(read_ahead(token))
+                        except SyntaxError as e:
+                            raise SyntaxError(f"while parsing {L}") from e
             elif ")" == token:
                 raise SyntaxError("unexpected )")
             elif token in SymbolTable.quotes:
