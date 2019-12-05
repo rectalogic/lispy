@@ -147,7 +147,7 @@ class Lispy:
                 return getattr(obj, attr)
             else:
                 return setattr(obj, attr, value)
-        raise TypeError("Access not allowed to %s.%s" % (type(obj), attr))
+        raise TypeError("Access not allowed to %s.%s" % (type(obj).__name__, attr))
 
     def macro_let(self, *args):
         args = list(args)
@@ -181,7 +181,11 @@ class Lispy:
                         try:
                             L.append(read_ahead(token))
                         except SyntaxError as e:
-                            raise SyntaxError(f"while parsing {L}") from e
+                            if not e.__cause__:
+                                raise SyntaxError(
+                                    f"while parsing {to_string(L)}"
+                                ) from e
+                            raise e
             elif ")" == token:
                 raise SyntaxError("unexpected )")
             elif token in SymbolTable.quotes:
@@ -333,6 +337,8 @@ class Lispy:
                     print(to_string(val), file=out)
             except Exception as e:
                 print("%s: %s" % (type(e).__name__, e))
+                if e.__cause__:
+                    print(e.__cause__)
 
 
 def is_pair(x) -> bool:
