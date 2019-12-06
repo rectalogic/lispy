@@ -198,7 +198,7 @@ def rep(x: str, env: Env) -> str:
     return PRINT(EVAL(READ(x), env))
 
 
-def init_repl_env() -> Env:
+def init_repl_env(argv=None) -> Env:
     def eval_func(args: List[MalExpression], env: Env) -> MalExpression:
         a0 = args[0]
         assert isinstance(a0, MalExpression)
@@ -216,7 +216,7 @@ def init_repl_env() -> Env:
         env,
     )
 
-    mal_argv = MalList([MalString(x) for x in sys.argv[2:]])
+    mal_argv = MalList([MalString(x) for x in (sys.argv[2:] if argv is None else argv)])
     env.set("*ARGV*", mal_argv)
 
     rep(
