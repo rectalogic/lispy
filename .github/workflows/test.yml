@@ -1,0 +1,24 @@
+name: Test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: [ ['3.7', 'py37'], ['3.8', 'py38'] ]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Setup Python ${{ matrix.python[0] }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python[0] }}
+        architecture: x64
+    - name: Run Tox tests ${{ matrix.python[0] }}
+      run: |
+        python -m pip install tox
+        tox -e ${{ matrix.python[1] }}
+    - name: Run Tox linters
+      if: matrix.python[0] == '3.7'
+      run: |
+        tox -e ${{ matrix.python[1] }}-lint
