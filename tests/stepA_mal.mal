@@ -6,9 +6,9 @@
 
 ;;
 ;; Testing readline
-(readline "mal-user> ")
-"hello"
-;=>"\"hello\""
+;; (readline "mal-user> ")
+;; "hello"
+;; ;=>"\"hello\""
 
 ;;
 ;; Testing *host-language*
