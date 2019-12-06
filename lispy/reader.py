@@ -8,7 +8,7 @@ from arpeggio import (  # type: ignore
 )
 from arpeggio import RegExMatch as _, NoMatch  # type: ignore
 
-from mal_types import (
+from .mal_types import (
     MalExpression,
     MalInt,
     MalList,
@@ -17,7 +17,7 @@ from mal_types import (
     MalVector,
     MalHash_map,
 )
-from mal_types import MalSymbol, MalString, MalSyntaxException
+from .mal_types import MalSymbol, MalString, MalSyntaxException
 
 
 # Arpeggio grammar

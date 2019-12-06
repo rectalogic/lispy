@@ -1,8 +1,8 @@
 import time
 from typing import List, Union, Dict
 
-import reader
-from mal_types import (
+from . import reader
+from .mal_types import (
     MalInt,
     MalNil,
     MalList,
@@ -14,7 +14,7 @@ from mal_types import (
     MalHash_map,
     MalVector,
 )
-from mal_types import (
+from .mal_types import (
     MalInvalidArgumentException,
     MalString,
     MalException,

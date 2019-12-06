@@ -1,6 +1,6 @@
 import unittest
 
-import stepA_mal
+from lispy import stepA_mal
 
 
 class TestStepA(unittest.TestCase):
@@ -11,7 +11,7 @@ class TestStepA(unittest.TestCase):
         return stepA_mal.rep(input, self._repl_env)
 
     def test_stepA_host_language(self):
-        self.assertEqual('"python.2"', self.rep("*host-language*"))
+        self.assertEqual('"python"', self.rep("*host-language*"))
 
     def test_stepA_eval_vector(self):
         self.assertEqual("[1 2 3]", self.rep("[1 2 (+ 1 2)]"))

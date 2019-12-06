@@ -1,6 +1,6 @@
 from typing import Optional, Dict, List
 
-from mal_types import MalExpression, MalSymbol, MalList, MalUnknownSymbolException
+from .mal_types import MalExpression, MalSymbol, MalList, MalUnknownSymbolException
 
 
 class Env(object):

@@ -2,10 +2,10 @@ import readline
 import sys
 from typing import List, Dict
 
-import core
-import reader
-from env import Env
-from mal_types import (
+from . import core
+from . import reader
+from .env import Env
+from .mal_types import (
     MalExpression,
     MalSymbol,
     MalException,
@@ -209,7 +209,7 @@ def init_repl_env() -> Env:
         env.set(key, core.ns[key])
 
     env.set("eval", MalFunctionCompiled(lambda args: eval_func(args, env)))
-    rep('(def! *host-language* "python.2")', env)
+    rep('(def! *host-language* "python")', env)
 
     rep(
         '(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))',

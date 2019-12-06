@@ -1,10 +1,10 @@
 import unittest
 
-import core
-import step8_macros
-from env import Env
-from mal_types import MalFunctionCompiled, MalInt, MalFunctionRaw, MalList
-from mal_types import MalInvalidArgumentException, MalIndexError
+from lispy import core
+from lispy import stepA_mal as step8_macros
+from lispy.env import Env
+from lispy.mal_types import MalFunctionCompiled, MalInt, MalFunctionRaw, MalList
+from lispy.mal_types import MalInvalidArgumentException, MalIndexError
 
 
 class TestStep8(unittest.TestCase):

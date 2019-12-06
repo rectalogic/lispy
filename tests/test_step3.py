@@ -1,14 +1,17 @@
 import unittest
 
-import mal_types
-import step3_env
-from env import Env
-from mal_types import MalList, MalInt
-from mal_types import MalSymbol
-from mal_types import MalUnknownSymbolException, MalInvalidArgumentException
+from lispy import mal_types
+from lispy import stepA_mal as step3_env
+from lispy.env import Env
+from lispy.mal_types import MalList, MalInt
+from lispy.mal_types import MalSymbol
+from lispy.mal_types import MalUnknownSymbolException, MalInvalidArgumentException
 
 
 class TestStep3(unittest.TestCase):
+    def setUp(self) -> None:
+        self._repl_env = step3_env.init_repl_env()
+
     def test_env_find(self):
         e = Env(None)
         e.set("key", MalInt(1))
@@ -144,10 +147,12 @@ class TestStep3(unittest.TestCase):
         )
 
     def test_step3_let_multiple(self):
-        self.assertEqual("5", step3_env.rep("(let* (c 2 d 3) (+ c d))"))
+        self.assertEqual("5", step3_env.rep("(let* (c 2 d 3) (+ c d))", self._repl_env))
 
     def test_step3_let_nested_backref(self):
-        self.assertEqual("6", step3_env.rep("(let* (c 2 d c) (+ c (+ d 2)))"))
+        self.assertEqual(
+            "6", step3_env.rep("(let* (c 2 d c) (+ c (+ d 2)))", self._repl_env)
+        )
 
 
 if __name__ == "__main__":

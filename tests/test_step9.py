@@ -1,7 +1,7 @@
 import unittest
 
-import step9_try
-from mal_types import MalException, MalIndexError, MalInvalidArgumentException
+from lispy import stepA_mal as step9_try
+from lispy.mal_types import MalException, MalIndexError, MalInvalidArgumentException
 
 
 class TestStep9(unittest.TestCase):
