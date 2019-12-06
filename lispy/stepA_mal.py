@@ -285,6 +285,6 @@ if __name__ == "__main__":
         try:
             line = input("user> ")
             readline.add_history(line)
-            print(rep_handling_exceptions(line, repl_env))
+            core.python_print(rep_handling_exceptions(line, repl_env))
         except EOFError:
             eof = True

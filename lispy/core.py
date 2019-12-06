@@ -24,9 +24,13 @@ from .mal_types import (
 )
 
 
+def python_print(s: str):
+    print(s)
+
+
 def prn(args: List[MalExpression]) -> MalNil:
     result_string = " ".join(map(lambda x: x.readable_str(), args))
-    print(result_string)
+    python_print(result_string)
     return MalNil()
 
 
@@ -37,7 +41,7 @@ def pr_str(args: List[MalExpression]) -> MalString:
 
 def println(args: List[MalExpression]) -> MalNil:
     result_string = " ".join(map(lambda x: x.unreadable_str(), args))
-    print(result_string)
+    python_print(result_string)
     return MalNil()
 
 

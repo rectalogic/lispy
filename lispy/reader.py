@@ -197,5 +197,4 @@ def read(x: str) -> MalExpression:
         assert issubclass(type(parsed), MalExpression)
         return parsed
     except NoMatch as e:
-        # print(str(e))
-        raise MalSyntaxException("invalid syntax or unexpected EOF")
+        raise MalSyntaxException("invalid syntax or unexpected EOF") from e
