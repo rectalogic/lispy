@@ -1,7 +1,8 @@
 from __future__ import annotations
 import readline
 import sys
-from typing import List, Dict
+import traceback
+from typing import Optional, List, Dict
 
 from . import core
 from . import reader
@@ -16,6 +17,7 @@ from .mal_types import (
     MalFunction,
     MalFunctionCompiled,
     MalFunctionRaw,
+    MalFunctionPython,
     MalVector,
     MalHash_map,
     MalUnknownSymbolException,
@@ -197,7 +199,7 @@ def EVAL(ast: MalExpression, env: Env) -> MalExpression:
 
                 env = Env(outer=f.env(), binds=f.params().native(), exprs=args,)
                 continue
-            elif isinstance(f, MalFunctionCompiled):
+            elif isinstance(f, (MalFunctionCompiled, MalFunctionPython)):
                 return f.call(args)
             else:
                 raise MalInvalidArgumentException(f, "not a function")
@@ -211,7 +213,7 @@ def rep(x: str, env: Env) -> str:
     return PRINT(EVAL(READ(x), env))
 
 
-def init_repl_env(argv=None) -> Env:
+def init_repl_env(argv: Optional[List[str]] = None, restricted: bool = False) -> Env:
     def eval_func(args: List[MalExpression], env: Env) -> MalExpression:
         a0 = args[0]
         if not isinstance(a0, MalExpression):
@@ -220,16 +222,20 @@ def init_repl_env(argv=None) -> Env:
 
     env = Env(None)
     for key in core.ns:
-        env.set(key, core.ns[key])
+        if not restricted or key not in {"slurp", "readline"}:
+            env.set(key, core.ns[key])
 
     env.set("eval", MalFunctionCompiled(lambda args: eval_func(args, env)))
     rep('(def! *host-language* "python")', env)
 
-    rep(
-        '(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))',
-        env,
-    )
+    if not restricted:
+        rep(
+            '(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))',
+            env,
+        )
 
+    if restricted and argv is None:
+        argv = []
     mal_argv = MalList([MalString(x) for x in (sys.argv[2:] if argv is None else argv)])
     env.set("*ARGV*", mal_argv)
 
@@ -272,31 +278,39 @@ def macroexpand(ast: MalExpression, env: Env) -> MalExpression:
         continue
 
 
-def rep_handling_exceptions(line: str, repl_env: Env) -> str:
+def print_exc():
+    core.python_print(traceback.format_exc())
+
+
+def rep_handling_exceptions(line: str, repl_env: Env, verbose: bool = False) -> str:
     try:
         return rep(line, repl_env)
     except MalUnknownSymbolException as e:
-        return "'" + e.func + "' not found"
+        m = "'" + e.func + "' not found"
+        if verbose:
+            m += "\n" + traceback.format_exc()
+        return m
     except MalException as e:
-        return "ERROR: " + str(e)
+        m = "ERROR: " + str(e)
+        if verbose:
+            m += "\n" + traceback.format_exc()
+        return m
 
 
-if __name__ == "__main__":
+def repl(env: Env, verbose: bool = False):
     # repl loop
     eof: bool = False
-    repl_env = init_repl_env()
 
-    if len(sys.argv) >= 2:
-        file_str = sys.argv[1]
-        rep_handling_exceptions('(load-file "' + file_str + '")', repl_env)
-        exit(0)
-
-    rep('(println (str "Mal [" *host-language* "]"))', repl_env)
+    rep('(println (str "Mal [" *host-language* "]"))', env)
 
     while not eof:
         try:
             line = input("user> ")
             readline.add_history(line)
-            core.python_print(rep_handling_exceptions(line, repl_env))
+            core.python_print(rep_handling_exceptions(line, env, verbose))
         except EOFError:
             eof = True
+
+
+def load_file(env: Env, filename: str) -> str:
+    return rep_handling_exceptions('(load-file "' + filename + '")', env)

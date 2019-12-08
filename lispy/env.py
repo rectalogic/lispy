@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any, TYPE_CHECKING
 
 from .mal_types import (
     MalExpression,
@@ -7,7 +7,11 @@ from .mal_types import (
     MalList,
     MalUnknownSymbolException,
     MalInvalidArgumentException,
+    expression_from_native,
 )
+
+if TYPE_CHECKING:
+    from .mal_types import Restrictions
 
 
 class Env(object):
@@ -35,7 +39,7 @@ class Env(object):
         self._data[key] = value
         return value
 
-    def find(self, key: MalExpression) -> Optional["Env"]:
+    def find(self, key: MalExpression) -> Optional[Env]:
         if str(key) in self._data:
             return self
         if self._outer is not None:
@@ -51,6 +55,12 @@ class Env(object):
         if location is None:
             raise MalUnknownSymbolException(strkey)
         return location.get(key)
+
+    def inject_native(
+        self, injections: Dict[str, Any], restrictions: Optional[Restrictions] = None
+    ):
+        for var, obj in injections.items():
+            self.set(var, expression_from_native(obj, restrictions))
 
     def __repr__(self) -> str:
         env_str = "{"

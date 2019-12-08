@@ -1,7 +1,7 @@
 from __future__ import annotations
 import time
 import operator
-from typing import List, Union, Dict, NoReturn, cast
+from typing import List, Union, Dict, NoReturn, Optional, cast
 
 from . import reader
 from .mal_types import (
@@ -12,6 +12,7 @@ from .mal_types import (
     MalExpression,
     MalFunction,
     MalFunctionCompiled,
+    MalPythonObject,
     MalAtom,
     MalHash_map,
     MalVector,
@@ -394,6 +395,22 @@ def swap(args: List[MalExpression]) -> MalExpression:
     return atom.native()
 
 
+def dot(args: List[MalExpression]) -> MalExpression:
+    if len(args) != 2 and len(args) != 3:
+        raise MalSyntaxException(". requires object and attribute and optional value")
+    python_object = args[0]
+    if not isinstance(python_object, MalPythonObject):
+        raise MalInvalidArgumentException(python_object, "not python object")
+    attr = args[1]
+    if not isinstance(attr, (MalString, MalSymbol)):
+        raise MalInvalidArgumentException(attr, "cannot convert to string")
+    if len(args) == 3:
+        value: Optional[MalExpression] = args[2]
+    else:
+        value = None
+    return python_object.dot(attr.native(), value)
+
+
 def require_args(args: List[MalExpression], count: int) -> List[MalExpression]:
     if len(args) != count:
         raise MalSyntaxException("not enough arguments")
@@ -479,4 +496,5 @@ ns = {
     "vals": MalFunctionCompiled(lambda args: vals(args)),
     "dissoc": MalFunctionCompiled(lambda args: dissoc(args)),
     "swap!": MalFunctionCompiled(lambda args: swap(args)),
+    ".": MalFunctionCompiled(lambda args: dot(args)),
 }

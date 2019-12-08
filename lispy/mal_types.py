@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import Callable, Dict, List, Any, TYPE_CHECKING
+from typing import Callable, Dict, List, Any, Optional, TYPE_CHECKING
 import abc
 
 if TYPE_CHECKING:
     from .env import Env
+
+    Restrictions = Dict[type, List[str]]
 
 
 class MalExpression(metaclass=abc.ABCMeta):
@@ -25,6 +27,38 @@ class MalExpression(metaclass=abc.ABCMeta):
         return self.readable_str()
 
 
+class MalPythonObject(MalExpression):
+    def __init__(self, native: Any, restrictions: Optional[Restrictions] = None):
+        self._python_native = native
+        self._restrictions = restrictions
+
+    def native(self) -> Any:
+        return self._python_native
+
+    def readable_str(self) -> str:
+        return repr(repr(self._python_native))
+
+    def dot(self, attr: str, value: Optional[MalExpression]) -> MalExpression:
+        if self._restrictions:
+            attrs = self._restrictions.get(type(self._python_native))
+            if not attrs or attr not in attrs:
+                raise MalInvalidArgumentException(
+                    self, f'Access restricted to attribute "{attr}"'
+                )
+        try:
+            if value is not None:
+                setattr(self._python_native, attr, expression_to_native(value))
+                return MalNil()
+            else:
+                return expression_from_native(
+                    getattr(self._python_native, attr, None), self._restrictions
+                )
+        except MalException:
+            raise
+        except Exception as e:
+            raise MalException(MalString(f"{e} raised from python")) from e
+
+
 class MalString(MalExpression):
     def __init__(self, input_value: str) -> None:
         self._value = input_value
@@ -41,7 +75,7 @@ class MalString(MalExpression):
     def unreadable_str(self) -> str:
         return self._value
 
-    def native(self) -> Any:
+    def native(self) -> str:
         return self._value
 
     def __hash__(self):
@@ -145,6 +179,7 @@ class MalNotImplementedException(MalException):
 
 class MalFunction(MalExpression, metaclass=abc.ABCMeta):
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._is_macro = False
 
     def readable_str(self):
@@ -204,6 +239,43 @@ class MalFunctionRaw(MalFunction):
 
     def call(self, args: List[MalExpression]) -> MalExpression:
         return self._native_function(args)
+
+
+class MalFunctionPython(MalFunction, MalPythonObject):
+    def __init__(
+        self, python_function: Callable, restrictions: Optional[Restrictions]
+    ) -> None:
+        super().__init__(native=python_function, restrictions=restrictions)
+
+    def native(self) -> Callable[[List[MalExpression]], MalExpression]:
+        return self._python_native
+
+    def call(self, mal_args: List[MalExpression]) -> MalExpression:
+        args = []
+        kwargs: Dict[str, Any] = {}
+        args_iter = iter(mal_args)
+        for a in args_iter:
+            if isinstance(a, MalKeyword):
+                try:
+                    v = next(args_iter)
+                except StopIteration:
+                    raise MalInvalidArgumentException(
+                        a, "expected value following keyword"
+                    )
+                k = a.native()
+                if k in kwargs:
+                    raise MalInvalidArgumentException(a, "duplicate keyword")
+                kwargs[k] = expression_to_native(v)
+            else:
+                args.append(expression_to_native(a))
+        try:
+            return expression_from_native(
+                self._python_native(*args, **kwargs), self._restrictions,
+            )
+        except MalException:
+            raise
+        except Exception as e:
+            raise MalException(MalString(f"{e} raised from python")) from e
 
 
 class MalInt(MalExpression):
@@ -294,3 +366,32 @@ class MalAtom(MalExpression):
 
     def reset(self, value: MalExpression) -> None:
         self._value = value
+
+
+def expression_from_native(
+    obj: Any, restrictions: Optional[Restrictions]
+) -> MalExpression:
+    if callable(obj):
+        return MalFunctionPython(obj, restrictions)
+    if isinstance(obj, str):
+        return MalString(obj)
+    if isinstance(obj, bool):
+        return MalBoolean(obj)
+    if isinstance(obj, int):
+        return MalInt(obj)
+    if obj is None:
+        return MalNil()
+    if isinstance(obj, (list, tuple)):
+        return MalList([expression_from_native(x, restrictions) for x in obj])
+    return MalPythonObject(obj, restrictions)
+
+
+def expression_to_native(expr: MalExpression) -> Any:
+    if isinstance(expr, (MalList, MalVector)):
+        return [expression_to_native(e) for e in expr.native()]
+    if isinstance(expr, MalHash_map):
+        return {
+            expression_to_native(k): expression_to_native(v)
+            for k, v in expr.native().items()
+        }
+    return expr.native()

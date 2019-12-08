@@ -43,9 +43,7 @@ class TestMal(Runner):
                 mal_script = os.path.join(
                     os.path.dirname(__file__), "..", "mal", "stepA_mal.mal"
                 )
-                stepA_mal.rep_handling_exceptions(
-                    '(load-file "' + mal_script + '")', repl_env
-                )
+                stepA_mal.load_file(repl_env, mal_script)
                 mal_function = repl_env.get("rep")
 
                 def rep(s):

@@ -83,7 +83,7 @@ class MalTestReader:
 
 
 class Runner(unittest.TestCase):
-    def run_tests(self, test_file, rep):
+    def run_tests(self, test_file, rep, hard=False):
         for form, msg, ret, out, soft, line_num in MalTestReader(test_file):
             if msg is not None:
                 log.info(msg)
@@ -115,7 +115,7 @@ class Runner(unittest.TestCase):
                         test_out = ""
 
                     expects = out + re.escape(ret)
-                    if soft:
+                    if not hard and soft:
                         if not re.search(expects, test_out + test_ret):
                             test_name = os.path.basename(test_file)
                             self.skipTest(
