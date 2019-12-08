@@ -1,6 +1,6 @@
 from __future__ import annotations
 import time
-from typing import List, Union, Dict
+from typing import List, Union, Dict, NoReturn
 
 from . import reader
 from .mal_types import (
@@ -184,7 +184,20 @@ def map_(func: MalExpression, map_list: MalExpression) -> MalExpression:
     return MalList(result_list)
 
 
-def throw(exception: MalExpression) -> MalExpression:
+def seq(obj: MalExpression) -> MalExpression:
+    if isinstance(obj, MalList):
+        return obj if obj.native() else MalNil()
+    elif isinstance(obj, MalVector):
+        return MalList(obj.native()) if obj.native() else MalNil()
+    elif isinstance(obj, MalString):
+        return MalList([MalString(c) for c in obj.native()]) if obj.native() else MalNil()
+    elif isinstance(obj, MalNil):
+        return obj
+    else:
+        raise MalInvalidArgumentException(obj, "not a sequence")
+
+
+def throw(exception: MalExpression) -> NoReturn:
     raise MalException(exception)
 
 
@@ -405,7 +418,7 @@ ns = {
     "fn?": MalFunctionCompiled(lambda args: not_implemented("fn?")),
     "string?": MalFunctionCompiled(lambda args: not_implemented("string?")),
     "number?": MalFunctionCompiled(lambda args: not_implemented("number?")),
-    "seq": MalFunctionCompiled(lambda args: not_implemented("seq")),
+    "seq": MalFunctionCompiled(lambda args: seq(args[0])),
     "conj": MalFunctionCompiled(lambda args: not_implemented("conj")),
     "get": MalFunctionCompiled(lambda args: get(args[0], args[1])),
     "first": MalFunctionCompiled(lambda args: first(args)),
