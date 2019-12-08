@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, Dict, List
 
 from .mal_types import MalExpression, MalSymbol, MalList, MalUnknownSymbolException
@@ -8,7 +9,7 @@ class Env(object):
 
     def __init__(
         self,
-        outer: Optional["Env"],
+        outer: Optional[Env],
         binds: Optional[List[MalExpression]] = None,
         exprs: Optional[List[MalExpression]] = None,
     ) -> None:

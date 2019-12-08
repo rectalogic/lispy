@@ -1,3 +1,4 @@
+from __future__ import annotations
 import readline
 import sys
 from typing import List, Dict
