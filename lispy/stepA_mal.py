@@ -12,6 +12,7 @@ from .mal_types import (
     MalList,
     MalNil,
     MalBoolean,
+    MalFunction,
     MalFunctionCompiled,
     MalFunctionRaw,
     MalVector,
@@ -34,7 +35,7 @@ def eval_ast(ast: MalExpression, env: Env) -> MalExpression:
     if isinstance(ast, MalVector):
         return MalVector([EVAL(x, env) for x in ast.native()])
     if isinstance(ast, MalHash_map):
-        new_dict = {}  # type: Dict[str, MalExpression]
+        new_dict: Dict[str, MalExpression] = {}
         for key in ast.native():
             new_dict[key] = EVAL(ast.native()[key], env)
         return MalHash_map(new_dict)
@@ -95,9 +96,7 @@ def EVAL(ast: MalExpression, env: Env) -> MalExpression:
         if first_str == "defmacro!":
             name = str(ast_native[1])
             value = EVAL(ast_native[2], env)
-            assert isinstance(value, MalFunctionCompiled) or isinstance(
-                value, MalFunctionRaw
-            )
+            assert isinstance(value, MalFunction)
             value.make_macro()
             return env.set(name, value)
         elif first_str == "let*":
@@ -178,11 +177,7 @@ def EVAL(ast: MalExpression, env: Env) -> MalExpression:
             if isinstance(f, MalFunctionRaw):
                 ast = f.ast()
 
-                env = Env(
-                    outer=f.env(),
-                    binds=f.params().native(),
-                    exprs=evaled_ast.native()[1:],
-                )
+                env = Env(outer=f.env(), binds=f.params().native(), exprs=args,)
                 continue
             elif isinstance(f, MalFunctionCompiled):
                 return f.call(args)
@@ -231,7 +226,7 @@ def is_macro_call(ast: MalExpression, env: Env) -> bool:
     try:
         x = env.get(ast.native()[0].native())
         try:
-            assert isinstance(x, MalFunctionRaw) or isinstance(x, MalFunctionCompiled)
+            assert isinstance(x, MalFunction)
         except AssertionError:
             return False
         return x.is_macro()  # type: ignore
@@ -253,9 +248,7 @@ def macroexpand(ast: MalExpression, env: Env) -> MalExpression:
             return ast
         assert isinstance(ast, MalList)
         macro_func = env.get(ast.native()[0].native())
-        assert isinstance(macro_func, MalFunctionRaw) or isinstance(
-            macro_func, MalFunctionCompiled
-        )
+        assert isinstance(macro_func, MalFunction)
         ast = macro_func.call(ast.native()[1:])
         continue
 

@@ -1,22 +1,20 @@
 from typing import Callable, Dict, List, Any
+import abc
 
 
-class MalExpression(object):
-    def __init__(self):
-        assert False  # cannot instantiate
-
+class MalExpression(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
     def native(self) -> Any:
         """Return a shallow native Python equivalent for the expression.
 
         For example, (1 2 3) might become [MalInt(1), MalInt(2), MalInt(3)]"""
-        pass
 
     def __str__(self) -> str:
         return self.readable_str()
 
+    @abc.abstractmethod
     def readable_str(self) -> str:
         """Return a human-readable (preferably Mal input format) form of the expression."""
-        pass
 
     def unreadable_str(self) -> str:
         """Returns an unescaped/raw str. Defaults to being the same as readable_str."""
@@ -137,22 +135,16 @@ class MalNotImplementedException(MalException):
         super().__init__(MalString("not implemented: " + func))
 
 
-class MalFunctionCompiled(MalExpression):
-    def __init__(
-        self, native_function: Callable[[List[MalExpression]], MalExpression]
-    ) -> None:
-        self._native_function = native_function
+class MalFunction(MalExpression, metaclass=abc.ABCMeta):
+    def __init__(self, *args, **kwargs):
         self._is_macro = False
 
     def readable_str(self):
         return "#<macro>" if self._is_macro else "#<function>"
 
-    def native(self) -> Callable[[List[MalExpression]], MalExpression]:
-        return self._native_function
-
+    @abc.abstractmethod
     def call(self, args: List[MalExpression]) -> MalExpression:
-        # print("CALL: " + str([str(arg) for arg in args]))
-        return self._native_function(args)
+        pass
 
     def is_macro(self) -> bool:
         return self._is_macro
@@ -161,7 +153,22 @@ class MalFunctionCompiled(MalExpression):
         self._is_macro = True
 
 
-class MalFunctionRaw(MalExpression):
+class MalFunctionCompiled(MalFunction):
+    def __init__(
+        self, native_function: Callable[[List[MalExpression]], MalExpression]
+    ) -> None:
+        super().__init__()
+        self._native_function = native_function
+
+    def native(self) -> Callable[[List[MalExpression]], MalExpression]:
+        return self._native_function
+
+    def call(self, args: List[MalExpression]) -> MalExpression:
+        # print("CALL: " + str([str(arg) for arg in args]))
+        return self._native_function(args)
+
+
+class MalFunctionRaw(MalFunction):
     def __init__(
         self,
         fn: Callable[[List[MalExpression]], MalExpression],
@@ -169,14 +176,11 @@ class MalFunctionRaw(MalExpression):
         params: MalList,
         env,
     ) -> None:
+        super().__init__()
         self._ast = ast
         self._params = params
         self._env = env
         self._native_function = fn
-        self._is_macro = False
-
-    def readable_str(self):
-        return "#<macro>" if self._is_macro else "#<function>"
 
     def ast(self) -> MalExpression:
         return self._ast
@@ -192,12 +196,6 @@ class MalFunctionRaw(MalExpression):
 
     def call(self, args: List[MalExpression]) -> MalExpression:
         return self._native_function(args)
-
-    def is_macro(self) -> bool:
-        return self._is_macro
-
-    def make_macro(self) -> None:
-        self._is_macro = True
 
 
 class MalInt(MalExpression):

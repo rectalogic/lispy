@@ -8,9 +8,9 @@ from .mal_types import (
     MalList,
     MalBoolean,
     MalExpression,
+    MalFunction,
     MalFunctionCompiled,
     MalAtom,
-    MalFunctionRaw,
     MalHash_map,
     MalVector,
 )
@@ -163,7 +163,7 @@ def nth(list_: MalExpression, index: MalExpression) -> MalExpression:
 
 def apply(args: List[MalExpression]) -> MalExpression:
     func = args[0]
-    assert isinstance(func, MalFunctionCompiled) or isinstance(func, MalFunctionRaw)
+    assert isinstance(func, MalFunction)
     rest_args: List[MalExpression] = []
     for i in range(1, len(args) - 1):
         rest_args.append(args[i])
@@ -174,7 +174,7 @@ def apply(args: List[MalExpression]) -> MalExpression:
 
 
 def map_(func: MalExpression, map_list: MalExpression) -> MalExpression:
-    assert isinstance(func, MalFunctionCompiled) or isinstance(func, MalFunctionRaw)
+    assert isinstance(func, MalFunction)
     assert isinstance(map_list, MalList) or isinstance(map_list, MalVector)
     result_list: List[MalExpression] = []
     for i in range(len(map_list.native())):
@@ -354,7 +354,7 @@ def swap(args: List[MalExpression]) -> MalExpression:
     atom = args[0]
     assert isinstance(atom, MalAtom)
     func = args[1]
-    assert isinstance(func, MalFunctionCompiled) or isinstance(func, MalFunctionRaw)
+    assert isinstance(func, MalFunction)
     atom.reset(func.call([atom.native()] + args[2:]))
     return atom.native()
 
