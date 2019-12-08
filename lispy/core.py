@@ -22,6 +22,7 @@ from .mal_types import (
     MalSymbol,
     MalNotImplementedException,
     MalIndexError,
+    MalSyntaxException,
 )
 
 
@@ -107,7 +108,8 @@ def read_string(a: MalExpression) -> MalExpression:
 
 
 def slurp(filename: MalExpression) -> MalString:
-    assert isinstance(filename, MalString)
+    if not isinstance(filename, MalString):
+        raise MalInvalidArgumentException(filename, "not a string")
     with open(filename.native(), "r") as the_file:
         contents = the_file.read()
     return MalString(contents)
@@ -121,25 +123,29 @@ def core_str(args: List[MalExpression]) -> MalString:
 
 
 def deref_q(atom: MalExpression) -> MalExpression:
-    assert isinstance(atom, MalAtom)
+    if not isinstance(atom, MalAtom):
+        raise MalInvalidArgumentException(atom, "not an atom")
     return atom.native()
 
 
 def reset(atom: MalExpression, val: MalExpression) -> MalExpression:
-    assert isinstance(atom, MalAtom)
+    if not isinstance(atom, MalAtom):
+        raise MalInvalidArgumentException(atom, "not an atom")
     atom.reset(val)
     return val
 
 
 def cons(first: MalExpression, rest: MalExpression) -> MalExpression:
-    assert isinstance(rest, MalList) or isinstance(rest, MalVector)
+    if not isinstance(rest, MalList) and not isinstance(rest, MalVector):
+        raise MalInvalidArgumentException(rest, "not a list or vector")
     return MalList([first] + rest.native())
 
 
 def concat(args: List[MalExpression]) -> MalExpression:
     result_list: List[MalExpression] = []
     for x in args:
-        assert isinstance(x, MalList) or isinstance(x, MalVector)
+        if not isinstance(x, MalList) and not isinstance(x, MalVector):
+            raise MalInvalidArgumentException(x, "not a list or vector")
         result_list = result_list + x.native()
     return MalList(result_list)
 
@@ -154,8 +160,10 @@ def not_(expr: MalExpression) -> MalExpression:
 
 
 def nth(list_: MalExpression, index: MalExpression) -> MalExpression:
-    assert isinstance(list_, MalList) or isinstance(list_, MalVector)
-    assert isinstance(index, MalInt)
+    if not isinstance(list_, MalList) and not isinstance(list_, MalVector):
+        raise MalInvalidArgumentException(list_, "not a list or vector")
+    if not isinstance(index, MalInt):
+        raise MalInvalidArgumentException(index, "not an int")
     list_native = list_.native()
     if index.native() > len(list_native) - 1:
         raise MalIndexError(index.native())
@@ -164,19 +172,23 @@ def nth(list_: MalExpression, index: MalExpression) -> MalExpression:
 
 def apply(args: List[MalExpression]) -> MalExpression:
     func = args[0]
-    assert isinstance(func, MalFunction)
+    if not isinstance(func, MalFunction):
+        raise MalInvalidArgumentException(func, "not a function")
     rest_args: List[MalExpression] = []
     for i in range(1, len(args) - 1):
         rest_args.append(args[i])
     last_arg = args[len(args) - 1]
-    assert isinstance(last_arg, MalList) or isinstance(last_arg, MalVector)
+    if not isinstance(last_arg, MalList) and not isinstance(last_arg, MalVector):
+        raise MalInvalidArgumentException(last_arg, "not a list or vector")
     rest_args = rest_args + last_arg.native()
     return func.call(rest_args)
 
 
 def map_(func: MalExpression, map_list: MalExpression) -> MalExpression:
-    assert isinstance(func, MalFunction)
-    assert isinstance(map_list, MalList) or isinstance(map_list, MalVector)
+    if not isinstance(func, MalFunction):
+        raise MalInvalidArgumentException(func, "not a function")
+    if not isinstance(map_list, MalList) and not isinstance(map_list, MalVector):
+        raise MalInvalidArgumentException(map_list, "not a list or vector")
     result_list: List[MalExpression] = []
     for i in range(len(map_list.native())):
         elem = map_list.native()[i]
@@ -190,7 +202,9 @@ def seq(obj: MalExpression) -> MalExpression:
     elif isinstance(obj, MalVector):
         return MalList(obj.native()) if obj.native() else MalNil()
     elif isinstance(obj, MalString):
-        return MalList([MalString(c) for c in obj.native()]) if obj.native() else MalNil()
+        return (
+            MalList([MalString(c) for c in obj.native()]) if obj.native() else MalNil()
+        )
     elif isinstance(obj, MalNil):
         return obj
     else:
@@ -222,7 +236,8 @@ def keyword_q(arg: MalExpression) -> MalExpression:
 
 
 def keyword(arg: MalExpression) -> MalExpression:
-    assert isinstance(arg, MalString)
+    if not isinstance(arg, MalString):
+        raise MalInvalidArgumentException(arg, "not a string")
     if arg.is_keyword():
         return arg
     else:
@@ -230,13 +245,15 @@ def keyword(arg: MalExpression) -> MalExpression:
 
 
 def symbol(arg: MalExpression) -> MalExpression:
-    assert isinstance(arg, MalString)
+    if not isinstance(arg, MalString):
+        raise MalInvalidArgumentException(arg, "not a string")
     return MalSymbol(arg.unreadable_str())
 
 
 def readline(arg: MalExpression) -> Union[MalString, MalNil]:
     try:
-        assert isinstance(arg, MalString)
+        if not isinstance(arg, MalString):
+            raise MalInvalidArgumentException(arg, "not a string")
         line = input(arg.native())
     except EOFError:
         return MalNil()
@@ -295,10 +312,12 @@ def vector(args: List[MalExpression]) -> MalExpression:
 
 
 def hash_map(args: List[MalExpression]) -> MalExpression:
-    assert len(args) % 2 == 0
+    if len(args) % 2 != 0:
+        raise MalSyntaxException("hash-map requires even number of arguments")
     map_ = {}  # type: Dict[str, MalExpression]
     for i in range(0, len(args) - 1, 2):
-        assert isinstance(args[i], MalString)
+        if not isinstance(args[i], MalString):
+            raise MalInvalidArgumentException(args[i], "not a string")
         map_[args[i].native()] = args[i + 1]
     return MalHash_map(map_)
 
@@ -366,9 +385,11 @@ def dissoc(args: List[MalExpression]) -> MalExpression:
 
 def swap(args: List[MalExpression]) -> MalExpression:
     atom = args[0]
-    assert isinstance(atom, MalAtom)
+    if not isinstance(atom, MalAtom):
+        raise MalInvalidArgumentException(atom, "not an atom")
     func = args[1]
-    assert isinstance(func, MalFunction)
+    if not isinstance(func, MalFunction):
+        raise MalInvalidArgumentException(func, "not a function")
     atom.reset(func.call([atom.native()] + args[2:]))
     return atom.native()
 

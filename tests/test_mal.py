@@ -29,7 +29,7 @@ class TestMal(Runner):
                 os.chdir(cwd)
 
     def test_mal_in_mal(self):
-        EXCLUDES = ("step5_tco.mal",)
+        EXCLUDES = ("step5_tco.mal", "step_test_errors.mal")
         for test_file in sorted(
             glob.glob(os.path.join(os.path.dirname(__file__), "step*.mal"))
         ):

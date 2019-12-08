@@ -1,7 +1,13 @@
 from __future__ import annotations
 from typing import Optional, Dict, List
 
-from .mal_types import MalExpression, MalSymbol, MalList, MalUnknownSymbolException
+from .mal_types import (
+    MalExpression,
+    MalSymbol,
+    MalList,
+    MalUnknownSymbolException,
+    MalInvalidArgumentException,
+)
 
 
 class Env(object):
@@ -17,7 +23,8 @@ class Env(object):
         self._data: Dict[str, MalExpression] = {}
         if binds is not None and exprs is not None:
             for x in range(0, len(binds)):
-                assert isinstance(binds[x], MalSymbol)
+                if not isinstance(binds[x], MalSymbol):
+                    raise MalInvalidArgumentException(binds[x], "not a symbol")
                 if binds[x].native() == "&":
                     self.set(str(binds[x + 1]), MalList(exprs[x:]))
                     break

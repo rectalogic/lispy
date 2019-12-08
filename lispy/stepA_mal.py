@@ -20,6 +20,7 @@ from .mal_types import (
     MalHash_map,
     MalUnknownSymbolException,
     MalInvalidArgumentException,
+    MalSyntaxException,
     MalString,
 )
 
@@ -97,19 +98,29 @@ def EVAL(ast: MalExpression, env: Env) -> MalExpression:
         if first_str == "defmacro!":
             name = str(ast_native[1])
             value = EVAL(ast_native[2], env)
-            assert isinstance(value, MalFunction)
+            if not isinstance(value, MalFunction):
+                raise MalInvalidArgumentException(value, "not a function")
             value.make_macro()
             return env.set(name, value)
         elif first_str == "let*":
-            assert len(ast_native) == 3
+            if len(ast_native) != 3:
+                raise MalSyntaxException("let* must be length 3")
             let_env = Env(env)
             bindings: MalExpression = ast_native[1]
-            assert isinstance(bindings, MalList) or isinstance(bindings, MalVector)
+            if not isinstance(bindings, MalList) and not isinstance(
+                bindings, MalVector
+            ):
+                raise MalInvalidArgumentException(bindings, "not a list or vector")
             bindings_list: List[MalExpression] = bindings.native()
-            assert len(bindings_list) % 2 == 0
+            if len(bindings_list) % 2 != 0:
+                raise MalInvalidArgumentException(bindings, "must be an even length")
             for i in range(0, len(bindings_list), 2):
-                assert isinstance(bindings_list[i], MalSymbol)
-                assert isinstance(bindings_list[i + 1], MalExpression)
+                if not isinstance(bindings_list[i], MalSymbol):
+                    raise MalInvalidArgumentException(bindings_list[i], "not a symbol")
+                if not isinstance(bindings_list[i + 1], MalExpression):
+                    raise MalInvalidArgumentException(
+                        bindings_list[i], "not an expression"
+                    )
                 let_env.set(str(bindings_list[i]), EVAL(bindings_list[i + 1], let_env))
             env = let_env
             ast = ast_native[2]
@@ -159,14 +170,20 @@ def EVAL(ast: MalExpression, env: Env) -> MalExpression:
                 if len(ast_native) < 3:
                     raise e
                 catch_block = ast_native[2]
-                assert (
-                    isinstance(catch_block, MalList)
-                    and isinstance(catch_block.native()[0], MalSymbol)
-                    and str(catch_block.native()[0]) == "catch*"
-                    and len(catch_block.native()) == 3
-                )
+                if not isinstance(catch_block, MalList):
+                    raise MalInvalidArgumentException(catch_block, "not a list")
+                if (
+                    not isinstance(catch_block.native()[0], MalSymbol)
+                    or not str(catch_block.native()[0]) == "catch*"
+                ):
+                    raise MalInvalidArgumentException(
+                        catch_block.native()[0], "must be catch* symbol"
+                    )
+                if len(catch_block.native()) != 3:
+                    raise MalInvalidArgumentException(catch_block, "must be length 3")
                 exception_symbol = catch_block.native()[1]
-                assert isinstance(exception_symbol, MalSymbol)
+                if not isinstance(exception_symbol, MalSymbol):
+                    raise MalInvalidArgumentException(exception_symbol, "not a symbol")
                 env = Env(env)
                 env.set(str(exception_symbol), e.native())
                 ast = catch_block.native()[2]
@@ -197,7 +214,8 @@ def rep(x: str, env: Env) -> str:
 def init_repl_env(argv=None) -> Env:
     def eval_func(args: List[MalExpression], env: Env) -> MalExpression:
         a0 = args[0]
-        assert isinstance(a0, MalExpression)
+        if not isinstance(a0, MalExpression):
+            raise MalInvalidArgumentException(a0, "not an expression")
         return EVAL(a0, env)
 
     env = Env(None)
@@ -226,11 +244,9 @@ def init_repl_env(argv=None) -> Env:
 def is_macro_call(ast: MalExpression, env: Env) -> bool:
     try:
         x = env.get(ast.native()[0].native())
-        try:
-            assert isinstance(x, MalFunction)
-        except AssertionError:
+        if not isinstance(x, MalFunction):
             return False
-        return x.is_macro()  # type: ignore
+        return x.is_macro()
     except TypeError:
         return False
     except MalUnknownSymbolException:
@@ -247,9 +263,11 @@ def macroexpand(ast: MalExpression, env: Env) -> MalExpression:
     while True:
         if not is_macro_call(ast, env):
             return ast
-        assert isinstance(ast, MalList)
+        if not isinstance(ast, MalList):
+            raise MalInvalidArgumentException(ast, "not a list")
         macro_func = env.get(ast.native()[0].native())
-        assert isinstance(macro_func, MalFunction)
+        if not isinstance(macro_func, MalFunction):
+            raise MalInvalidArgumentException(macro_func, "not a function")
         ast = macro_func.call(ast.native()[1:])
         continue
 

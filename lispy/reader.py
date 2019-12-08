@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
 
 from arpeggio import (  # type: ignore
     ParserPython,
@@ -19,6 +19,9 @@ from .mal_types import (
     MalHash_map,
 )
 from .mal_types import MalSymbol, MalString, MalSyntaxException
+
+if TYPE_CHECKING:
+    from arpeggio import ParseTreeNode, SemanticActionResults
 
 
 # Arpeggio grammar
@@ -98,17 +101,26 @@ def mBoolean():
 
 
 class ReadASTVisitor(PTNodeVisitor):
-    def visit_mExpression(self, node, children) -> MalExpression:
+    def visit_mExpression(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalExpression:
         return children[0]  # children should already be Mal types
 
-    def visit_mInt(self, node, children) -> MalInt:
+    def visit_mInt(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalInt:
         return MalInt(int(node.value))
 
-    def visit_mString(self, node, children) -> MalString:
+    def visit_mString(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalString:
         # node.value will have quotes, escape sequences
-        assert type(node.value) is str
+        if not isinstance(node.value, str):
+            raise MalSyntaxException("node not a string")
         if node.value[0] != '"':
-            raise Exception("internal error: parsed a string with no start quote")
+            raise MalSyntaxException(
+                "internal error: parsed a string with no start quote"
+            )
         val: str = node.value
         if len(val) < 2 or val[-1] != '"':
             raise MalSyntaxException("unbalanced string")
@@ -137,51 +149,75 @@ class ReadASTVisitor(PTNodeVisitor):
 
         return MalString(result)
 
-    def visit_mKeyword(self, node, children) -> MalString:
-        assert type(node.value) is str
-        assert len(node.value) > 1
+    def visit_mKeyword(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalString:
+        if not isinstance(node.value, str) or len(node.value) <= 1:
+            raise MalSyntaxException("invalid keyword")
         return MalString(node.value[1:], keyword=True)
 
-    def visit_mList(self, node, children) -> MalList:
+    def visit_mList(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalList:
         return MalList(children)
 
-    def visit_mVector(self, node, children) -> MalVector:
+    def visit_mVector(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalVector:
         return MalVector(children)
 
-    def visit_mHash_map(self, node, children):
-        assert len(children) % 2 == 0
-        dict = {}  # type: Dict[MalExpression, MalExpression]
+    def visit_mHash_map(self, node: ParseTreeNode, children) -> MalHash_map:
+        if len(children) % 2 != 0:
+            raise MalSyntaxException("invalid hash-map entries")
+        hashmap: Dict[str, MalExpression] = {}
         for i in range(0, len(children), 2):
-            assert isinstance(children[i], MalString)
-            dict[children[i].native()] = children[i + 1]
-        return MalHash_map(dict)
+            if not isinstance(children[i], MalString):
+                raise MalSyntaxException("hash-map key not string")
+            hashmap[children[i].native()] = children[i + 1]
+        return MalHash_map(hashmap)
 
-    def visit_mSymbol(self, node, children) -> MalSymbol:
+    def visit_mSymbol(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalSymbol:
         return MalSymbol(node.value)
 
-    def visit_mBoolean(self, node, children) -> MalBoolean:
+    def visit_mBoolean(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalBoolean:
         if node.value == "true":
             return MalBoolean(True)
         if node.value == "false":
             return MalBoolean(False)
         raise Exception("Internal reader error")
 
-    def visit_mNil(self, node, children) -> MalNil:
+    def visit_mNil(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalNil:
         return MalNil()
 
-    def visit_mQuotedExpression(self, node, children) -> MalList:
+    def visit_mQuotedExpression(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalList:
         return MalList([MalSymbol("quote"), children[0]])
 
-    def visit_mQuasiQuotedExpression(self, node, children) -> MalList:
+    def visit_mQuasiQuotedExpression(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalList:
         return MalList([MalSymbol("quasiquote"), children[0]])
 
-    def visit_mSpliceUnquotedExpression(self, node, children) -> MalList:
+    def visit_mSpliceUnquotedExpression(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalList:
         return MalList([MalSymbol("splice-unquote"), children[0]])
 
-    def visit_mUnquotedExpression(self, node, children) -> MalList:
+    def visit_mUnquotedExpression(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalList:
         return MalList([MalSymbol("unquote"), children[0]])
 
-    def visit_mDerefExpression(self, node, children) -> MalList:
+    def visit_mDerefExpression(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalList:
         return MalList([MalSymbol("deref"), children[0]])
 
 
@@ -195,7 +231,8 @@ def read(x: str) -> MalExpression:
 
     try:
         parsed = visit_parse_tree(reader.parse(x), ReadASTVisitor())
-        assert issubclass(type(parsed), MalExpression)
+        if not isinstance(parsed, MalExpression):
+            raise MalSyntaxException("invalid expression")
         return parsed
     except NoMatch as e:
         raise MalSyntaxException("invalid syntax or unexpected EOF") from e

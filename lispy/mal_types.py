@@ -1,6 +1,9 @@
 from __future__ import annotations
-from typing import Callable, Dict, List, Any
+from typing import Callable, Dict, List, Any, TYPE_CHECKING
 import abc
+
+if TYPE_CHECKING:
+    from .env import Env
 
 
 class MalExpression(metaclass=abc.ABCMeta):
@@ -62,7 +65,8 @@ class MalString(MalExpression):
 class MalList(MalExpression):
     def __init__(self, values: List[MalExpression]) -> None:
         for x in values:
-            assert isinstance(x, MalExpression)
+            if not isinstance(x, MalExpression):
+                raise MalInvalidArgumentException(x, "not an expression")
         self._values = values
 
     def readable_str(self) -> str:
@@ -77,14 +81,15 @@ class MalList(MalExpression):
 
 class MalSymbol(MalExpression):
     def __init__(self, value: str) -> None:
-        assert type(value) is str
+        if not isinstance(value, str):
+            raise MalSyntaxException(f"{value} not a string")
 
         self._value = str(value)
 
     def readable_str(self) -> str:
         return str(self._value)
 
-    def eval(self, environment) -> MalExpression:
+    def eval(self, environment: Env) -> MalExpression:
         # print("Evaluating: " + repr(self))
         return environment.get(self)
 
@@ -92,7 +97,7 @@ class MalSymbol(MalExpression):
         return self._value
 
 
-class MalException(Exception, MalExpression):
+class MalException(MalExpression, Exception):
     def __init__(self, value: MalExpression) -> None:
         self._value = value
 
@@ -109,12 +114,12 @@ class MalIndexError(MalException):
 
 
 class MalSyntaxException(MalException):
-    def __init__(self, message) -> None:
+    def __init__(self, message: str) -> None:
         super().__init__(MalString(message))
 
 
 class MalUnknownTypeException(MalException):
-    def __init__(self, message) -> None:
+    def __init__(self, message: str) -> None:
         super().__init__(MalString(message))
 
 
@@ -201,7 +206,8 @@ class MalFunctionRaw(MalFunction):
 
 class MalInt(MalExpression):
     def __init__(self, value: int) -> None:
-        assert type(value) is int
+        if not isinstance(value, int):
+            raise MalSyntaxException(f"{value} not an int")
         self._value = value
 
     def readable_str(self) -> str:
