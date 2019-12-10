@@ -37,7 +37,7 @@ def eval_ast(ast: MalExpression, env: Env) -> MalExpression:
     if isinstance(ast, MalVector):
         return MalVector([EVAL(x, env) for x in ast.native()])
     if isinstance(ast, MalHash_map):
-        new_dict: Dict[str, MalExpression] = {}
+        new_dict: Dict[MalString, MalExpression] = {}
         for key in ast.native():
             new_dict[key] = EVAL(ast.native()[key], env)
         return MalHash_map(new_dict)

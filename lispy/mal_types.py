@@ -26,40 +26,42 @@ class MalExpression(metaclass=abc.ABCMeta):
 
 
 class MalString(MalExpression):
-    def __init__(
-        self, input_value: str, is_already_encoded: bool = False, keyword: bool = False
-    ) -> None:
-        # print("STR: " + input_value)
-        if is_already_encoded:
-            self._value = input_value
-        if keyword:
-            self._value = "\u029e" + input_value
-        else:
-            self._value = input_value
+    def __init__(self, input_value: str) -> None:
+        self._value = input_value
 
     def readable_str(self) -> str:
-        if self.is_keyword():
-            return ":" + self._value[1:]
-        else:
-            val = self._value
+        val = self._value
 
-            val = val.replace("\\", "\\\\")  # escape backslashes
-            val = val.replace("\n", "\\n")  # escape newlines
-            val = val.replace('"', '\\"')  # escape quotes
-            val = '"' + val + '"'  # add surrounding quotes
-            return val
+        val = val.replace("\\", "\\\\")  # escape backslashes
+        val = val.replace("\n", "\\n")  # escape newlines
+        val = val.replace('"', '\\"')  # escape quotes
+        val = '"' + val + '"'  # add surrounding quotes
+        return val
 
     def unreadable_str(self) -> str:
-        if self.is_keyword():
-            return ":" + self._value[1:]
-        else:
-            return self._value
+        return self._value
 
     def native(self) -> Any:
         return self._value
 
-    def is_keyword(self) -> bool:
-        return len(self._value) > 1 and self._value[0] == "\u029e"
+    def __hash__(self):
+        return hash(self._value)
+
+    def __eq__(self, other):
+        if type(other) == type(self):
+            return self._value == other._value
+        return False
+
+
+class MalKeyword(MalString):
+    def __init__(self, input_value: str):
+        super().__init__(input_value)
+
+    def readable_str(self) -> str:
+        return ":" + self._value
+
+    def unreadable_str(self) -> str:
+        return ":" + self._value
 
 
 class MalList(MalExpression):
@@ -232,24 +234,24 @@ class MalVector(MalExpression):
 
 
 class MalHash_map(MalExpression):
-    def __init__(self, values: Dict[str, MalExpression]) -> None:
+    def __init__(self, values: Dict[MalString, MalExpression]) -> None:
         self._dict = values.copy()
 
     def readable_str(self) -> str:
         result_list: List[str] = []
         for x in self._dict:
-            result_list.append(MalString(x).readable_str())
+            result_list.append(x.readable_str())
             result_list.append(self._dict[x].readable_str())
         return "{" + " ".join(result_list) + "}"
 
     def unreadable_str(self) -> str:
         result_list: List[str] = []
         for x in self._dict:
-            result_list.append(MalString(x, is_already_encoded=True).unreadable_str())
+            result_list.append(x.unreadable_str())
             result_list.append(self._dict[x].unreadable_str())
         return "{" + " ".join(result_list) + "}"
 
-    def native(self) -> Dict[str, MalExpression]:
+    def native(self) -> Dict[MalString, MalExpression]:
         return self._dict
 
 

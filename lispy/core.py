@@ -1,6 +1,6 @@
 from __future__ import annotations
 import time
-from typing import List, Union, Dict, NoReturn
+from typing import List, Union, Dict, NoReturn, cast
 
 from . import reader
 from .mal_types import (
@@ -18,6 +18,7 @@ from .mal_types import (
 from .mal_types import (
     MalInvalidArgumentException,
     MalString,
+    MalKeyword,
     MalException,
     MalSymbol,
     MalNotImplementedException,
@@ -232,16 +233,16 @@ def symbol_q(arg: MalExpression) -> MalExpression:
 
 
 def keyword_q(arg: MalExpression) -> MalExpression:
-    return MalBoolean(isinstance(arg, MalString) and arg.is_keyword())
+    return MalBoolean(isinstance(arg, MalKeyword))
 
 
 def keyword(arg: MalExpression) -> MalExpression:
     if not isinstance(arg, MalString):
         raise MalInvalidArgumentException(arg, "not a string")
-    if arg.is_keyword():
+    if isinstance(arg, MalKeyword):
         return arg
     else:
-        return MalString(arg.unreadable_str(), keyword=True)
+        return MalKeyword(arg.unreadable_str())
 
 
 def symbol(arg: MalExpression) -> MalExpression:
@@ -269,8 +270,8 @@ def get(map: MalExpression, key: MalExpression) -> MalExpression:
         return MalNil()
     if not isinstance(map, MalHash_map):
         raise MalInvalidArgumentException(map, "not a hash map")
-    if key.native() in map.native():
-        return map.native()[key.native()]
+    if isinstance(key, MalString) and key in map.native():
+        return map.native()[key]
     else:
         return MalNil()
 
@@ -314,11 +315,11 @@ def vector(args: List[MalExpression]) -> MalExpression:
 def hash_map(args: List[MalExpression]) -> MalExpression:
     if len(args) % 2 != 0:
         raise MalSyntaxException("hash-map requires even number of arguments")
-    map_ = {}  # type: Dict[str, MalExpression]
+    map_: Dict[MalString, MalExpression] = {}
     for i in range(0, len(args) - 1, 2):
         if not isinstance(args[i], MalString):
             raise MalInvalidArgumentException(args[i], "not a string")
-        map_[args[i].native()] = args[i + 1]
+        map_[cast(MalString, args[i])] = args[i + 1]
     return MalHash_map(map_)
 
 
@@ -329,8 +330,8 @@ def assoc(args: List[MalExpression]) -> MalExpression:
         return args[0]
     if not isinstance(args[0], MalHash_map):
         raise MalInvalidArgumentException(args[0], "not a hash map")
-    dict_a_copy: Dict[str, MalExpression] = args[0].native().copy()
-    dict_b: Dict[str, MalExpression] = hash_map(args[1:]).native()
+    dict_a_copy: Dict[MalString, MalExpression] = args[0].native().copy()
+    dict_b: Dict[MalString, MalExpression] = hash_map(args[1:]).native()
     for key in dict_b:
         dict_a_copy[key] = dict_b[key]
     return MalHash_map(dict_a_copy)
@@ -343,7 +344,7 @@ def contains_q(args: List[MalExpression]) -> MalExpression:
         raise MalInvalidArgumentException(args[0], "not a hash-map")
     if not isinstance(args[1], MalString):
         return MalBoolean(False)
-    return MalBoolean(args[1].native() in args[0].native())
+    return MalBoolean(args[1] in args[0].native())
 
 
 def keys(args: List[MalExpression]) -> MalExpression:
@@ -353,7 +354,7 @@ def keys(args: List[MalExpression]) -> MalExpression:
         )
     if not isinstance(args[0], MalHash_map):
         raise MalInvalidArgumentException(args[0], "not a hash map")
-    return MalList([MalString(x, is_already_encoded=True) for x in args[0].native()])
+    return MalList([x for x in args[0].native()])
 
 
 def vals(args: List[MalExpression]) -> MalExpression:
@@ -363,7 +364,7 @@ def vals(args: List[MalExpression]) -> MalExpression:
         )
     if not isinstance(args[0], MalHash_map):
         raise MalInvalidArgumentException(args[0], "not a hash map")
-    return MalList([args[0].native()[x] for x in args[0].native()])
+    return MalList(list(args[0].native().values()))
 
 
 def dissoc(args: List[MalExpression]) -> MalExpression:
@@ -373,13 +374,11 @@ def dissoc(args: List[MalExpression]) -> MalExpression:
         return args[0]
     if not isinstance(args[0], MalHash_map):
         raise MalInvalidArgumentException(args[0], "not a hash map")
-    dict_a_copy: Dict[str, MalExpression] = args[0].native().copy()
+    dict_a_copy: Dict[MalString, MalExpression] = args[0].native().copy()
     list_b: List[MalExpression] = MalList(args[1:]).native()
     for key in list_b:
-        try:
-            del dict_a_copy[key.unreadable_str()]
-        except KeyError:
-            pass
+        if key in dict_a_copy:
+            del dict_a_copy[cast(MalString, key)]
     return MalHash_map(dict_a_copy)
 
 

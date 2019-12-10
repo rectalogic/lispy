@@ -18,7 +18,7 @@ from .mal_types import (
     MalVector,
     MalHash_map,
 )
-from .mal_types import MalSymbol, MalString, MalSyntaxException
+from .mal_types import MalSymbol, MalString, MalKeyword, MalSyntaxException
 
 if TYPE_CHECKING:
     from arpeggio import ParseTreeNode, SemanticActionResults
@@ -154,7 +154,7 @@ class ReadASTVisitor(PTNodeVisitor):
     ) -> MalString:
         if not isinstance(node.value, str) or len(node.value) <= 1:
             raise MalSyntaxException("invalid keyword")
-        return MalString(node.value[1:], keyword=True)
+        return MalKeyword(node.value[1:])
 
     def visit_mList(
         self, node: ParseTreeNode, children: SemanticActionResults
@@ -169,11 +169,11 @@ class ReadASTVisitor(PTNodeVisitor):
     def visit_mHash_map(self, node: ParseTreeNode, children) -> MalHash_map:
         if len(children) % 2 != 0:
             raise MalSyntaxException("invalid hash-map entries")
-        hashmap: Dict[str, MalExpression] = {}
+        hashmap: Dict[MalString, MalExpression] = {}
         for i in range(0, len(children), 2):
             if not isinstance(children[i], MalString):
-                raise MalSyntaxException("hash-map key not string")
-            hashmap[children[i].native()] = children[i + 1]
+                raise MalSyntaxException("hash-map key not string or keyword")
+            hashmap[children[i]] = children[i + 1]
         return MalHash_map(hashmap)
 
     def visit_mSymbol(
