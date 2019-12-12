@@ -18,3 +18,12 @@ a
 
 (let* (a 123 b) 'a)
 ;/must be an even length"
+
+(false?)
+;/not enough arguments"
+
+(>)
+;/not enough arguments"
+
+(> 2)
+;/not enough arguments"
