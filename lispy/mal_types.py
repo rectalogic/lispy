@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import Callable, Dict, List, Any, Optional, TYPE_CHECKING
+from typing import Callable, Dict, List, Any, Optional, Union, TYPE_CHECKING, cast
 import abc
 
 if TYPE_CHECKING:
     from .env import Env
 
     Restrictions = Dict[type, List[str]]
+    HashMapDict = Dict[Union["MalString", "MalKeyword"], "MalExpression"]
 
 
 class MalExpression(metaclass=abc.ABCMeta):
@@ -14,6 +15,11 @@ class MalExpression(metaclass=abc.ABCMeta):
         """Return a shallow native Python equivalent for the expression.
 
         For example, (1 2 3) might become [MalInt(1), MalInt(2), MalInt(3)]"""
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.native() == other.native()
+        return False
 
     def __str__(self) -> str:
         return self.readable_str()
@@ -37,6 +43,10 @@ class MalPythonObject(MalExpression):
 
     def readable_str(self) -> str:
         return repr(repr(self._python_native))
+
+    @property
+    def restrictions(self) -> Optional[Restrictions]:
+        return self._restrictions
 
     def dot(self, attr: str, value: Optional[MalExpression]) -> MalExpression:
         if self._restrictions:
@@ -81,15 +91,10 @@ class MalString(MalExpression):
     def __hash__(self):
         return hash(self._value)
 
-    def __eq__(self, other):
-        if type(other) == type(self):
-            return self._value == other._value
-        return False
 
-
-class MalKeyword(MalString):
+class MalKeyword(MalExpression):
     def __init__(self, input_value: str):
-        super().__init__(input_value)
+        self._value = input_value
 
     def readable_str(self) -> str:
         return ":" + self._value
@@ -97,13 +102,45 @@ class MalKeyword(MalString):
     def unreadable_str(self) -> str:
         return ":" + self._value
 
+    def native(self) -> str:
+        return self._value
 
-class MalList(MalExpression):
+    def __hash__(self):
+        return hash(self._value)
+
+
+class MalMeta(metaclass=abc.ABCMeta):
+    def __init__(self, *args, **kwargs):
+        self._meta: Optional[MalExpression] = None
+
+    @abc.abstractmethod
+    def copy(self) -> MalMeta:
+        pass
+
+    @property
+    def meta(self) -> MalExpression:
+        return MalNil() if self._meta is None else self._meta
+
+    @meta.setter
+    def meta(self, meta: MalExpression):
+        self._meta = meta
+
+
+class MalList(MalExpression, MalMeta):
     def __init__(self, values: List[MalExpression]) -> None:
+        super().__init__()
         for x in values:
             if not isinstance(x, MalExpression):
                 raise MalInvalidArgumentException(x, "not an expression")
         self._values = values
+
+    def __eq__(self, other):
+        if isinstance(other, (MalList, MalVector)):
+            return self.native() == other.native()
+        return False
+
+    def copy(self) -> MalList:
+        return self.__class__(list(self._values))
 
     def readable_str(self) -> str:
         return "(" + " ".join(map(lambda x: x.readable_str(), self._values)) + ")"
@@ -177,10 +214,15 @@ class MalNotImplementedException(MalException):
         super().__init__(MalString("not implemented: " + func))
 
 
-class MalFunction(MalExpression, metaclass=abc.ABCMeta):
+class MalFunction(MalExpression, MalMeta, metaclass=abc.ABCMeta):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._is_macro = False
+
+    def __eq__(self, other):
+        if super().__eq__(other):
+            return self.is_macro() == other.is_macro()
+        return False
 
     def readable_str(self):
         return "#<macro>" if self._is_macro else "#<function>"
@@ -203,6 +245,12 @@ class MalFunctionCompiled(MalFunction):
         super().__init__()
         self._native_function = native_function
 
+    def copy(self) -> MalFunctionCompiled:
+        f = self.__class__(self.native())
+        if self.is_macro():
+            f.make_macro()
+        return f
+
     def native(self) -> Callable[[List[MalExpression]], MalExpression]:
         return self._native_function
 
@@ -211,7 +259,7 @@ class MalFunctionCompiled(MalFunction):
         return self._native_function(args)
 
 
-class MalFunctionRaw(MalFunction):
+class MalFunctionRaw(MalFunction, MalMeta):
     def __init__(
         self,
         fn: Callable[[List[MalExpression]], MalExpression],
@@ -224,6 +272,22 @@ class MalFunctionRaw(MalFunction):
         self._params = params
         self._env = env
         self._native_function = fn
+
+    def __eq__(self, other):
+        if super().__eq__(other):
+            f = cast(MalFunctionRaw, other)
+            return (
+                self.ast() == f.ast()
+                and self.params() == f.params()
+                and self.env() == f.env()
+            )
+        return False
+
+    def copy(self) -> MalFunctionRaw:
+        f = self.__class__(self.native(), self.ast(), self.params(), self.env())
+        if self.is_macro():
+            f.make_macro()
+        return f
 
     def ast(self) -> MalExpression:
         return self._ast
@@ -246,6 +310,12 @@ class MalFunctionPython(MalFunction, MalPythonObject):
         self, python_function: Callable, restrictions: Optional[Restrictions]
     ) -> None:
         super().__init__(native=python_function, restrictions=restrictions)
+
+    def copy(self) -> MalFunctionPython:
+        f = self.__class__(self.native(), self.restrictions)
+        if self.is_macro():
+            f.make_macro()
+        return f
 
     def native(self) -> Callable[[List[MalExpression]], MalExpression]:
         return self._python_native
@@ -291,9 +361,18 @@ class MalInt(MalExpression):
         return self._value
 
 
-class MalVector(MalExpression):
+class MalVector(MalExpression, MalMeta):
     def __init__(self, values: List[MalExpression]) -> None:
+        super().__init__()
         self._values = values
+
+    def __eq__(self, other):
+        if isinstance(other, (MalList, MalVector)):
+            return self.native() == other.native()
+        return False
+
+    def copy(self) -> MalVector:
+        return self.__class__(list(self._values))
 
     def readable_str(self) -> str:
         return "[" + " ".join(map(lambda x: x.readable_str(), self._values)) + "]"
@@ -305,9 +384,12 @@ class MalVector(MalExpression):
         return self._values
 
 
-class MalHash_map(MalExpression):
-    def __init__(self, values: Dict[MalString, MalExpression]) -> None:
+class MalHash_map(MalExpression, MalMeta):
+    def __init__(self, values: HashMapDict) -> None:
         self._dict = values.copy()
+
+    def copy(self) -> MalHash_map:
+        return self.__class__(self._dict)
 
     def readable_str(self) -> str:
         result_list: List[str] = []
@@ -323,7 +405,7 @@ class MalHash_map(MalExpression):
             result_list.append(self._dict[x].unreadable_str())
         return "{" + " ".join(result_list) + "}"
 
-    def native(self) -> Dict[MalString, MalExpression]:
+    def native(self) -> HashMapDict:
         return self._dict
 
 
@@ -354,9 +436,12 @@ class MalBoolean(MalExpression):
         return self._value
 
 
-class MalAtom(MalExpression):
+class MalAtom(MalExpression, MalMeta):
     def __init__(self, value: MalExpression) -> None:
         self._value = value
+
+    def copy(self) -> MalAtom:
+        return self.__class__(self._value)
 
     def native(self) -> MalExpression:
         return self._value

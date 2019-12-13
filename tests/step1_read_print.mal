@@ -235,7 +235,7 @@ false
 ;; -------- Optional Functionality --------
 
 ;; Testing read of ^/metadata
-^{"a" 1} [1 2 3]
+'^{"a" 1} [1 2 3]
 ;=>(with-meta [1 2 3] {"a" 1})
 
 

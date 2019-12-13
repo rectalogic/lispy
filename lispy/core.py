@@ -1,7 +1,7 @@
 from __future__ import annotations
 import time
 import operator
-from typing import List, Union, Dict, NoReturn, Optional, cast
+from typing import List, Union, NoReturn, Optional, cast, TYPE_CHECKING
 
 from . import reader
 from .mal_types import (
@@ -16,6 +16,7 @@ from .mal_types import (
     MalAtom,
     MalHash_map,
     MalVector,
+    MalMeta,
 )
 from .mal_types import (
     MalInvalidArgumentException,
@@ -27,6 +28,9 @@ from .mal_types import (
     MalIndexError,
     MalSyntaxException,
 )
+
+if TYPE_CHECKING:
+    from .mal_types import HashMapDict
 
 
 def python_print(s: str):
@@ -71,20 +75,7 @@ def count(x: MalExpression) -> MalInt:
 
 
 def equal(a: MalExpression, b: MalExpression) -> MalBoolean:
-    if (isinstance(a, MalList) or isinstance(a, MalVector)) and (
-        isinstance(b, MalList) or isinstance(b, MalVector)
-    ):
-        a_native = a.native()
-        b_native = b.native()
-        if len(a_native) != len(b_native):
-            return MalBoolean(False)
-        for x in range(0, len(a_native)):
-            if not equal(a_native[x], b_native[x]):
-                return MalBoolean(False)
-        return MalBoolean(True)
-    if type(a) == type(b) and a.native() == b.native():
-        return MalBoolean(True)
-    return MalBoolean(False)
+    return MalBoolean(a == b)
 
 
 def less(a: MalExpression, b: MalExpression) -> MalBoolean:
@@ -214,6 +205,19 @@ def seq(obj: MalExpression) -> MalExpression:
         raise MalInvalidArgumentException(obj, "not a sequence")
 
 
+def conj(args: List[MalExpression]) -> MalExpression:
+    if len(args) < 2:
+        raise MalSyntaxException("requires at least 2 arguments")
+    list_ = args[0]
+    rest = args[1:]
+    if isinstance(list_, MalList):
+        return MalList(list(reversed(rest)) + list_.native())
+    elif isinstance(list_, MalVector):
+        return MalVector(list_.native() + rest)
+    else:
+        raise MalInvalidArgumentException(list_, "not a list or vector")
+
+
 def throw(exception: MalExpression) -> NoReturn:
     raise MalException(exception)
 
@@ -239,12 +243,12 @@ def keyword_q(arg: MalExpression) -> MalExpression:
 
 
 def keyword(arg: MalExpression) -> MalExpression:
-    if not isinstance(arg, MalString):
-        raise MalInvalidArgumentException(arg, "not a string")
     if isinstance(arg, MalKeyword):
         return arg
-    else:
+    elif isinstance(arg, MalString):
         return MalKeyword(arg.unreadable_str())
+    else:
+        raise MalInvalidArgumentException(arg, "not a string")
 
 
 def symbol(arg: MalExpression) -> MalExpression:
@@ -263,6 +267,35 @@ def readline(arg: MalExpression) -> Union[MalString, MalNil]:
     return MalString(line)
 
 
+def meta(arg: MalExpression) -> MalExpression:
+    if isinstance(arg, MalMeta):
+        return arg.meta
+    return MalNil()
+
+
+def with_meta(arg: MalExpression, meta: MalExpression) -> MalExpression:
+    if isinstance(arg, MalMeta):
+        c = arg.copy()
+        c.meta = meta
+        return c
+    else:
+        return MalNil()
+
+
+def fn_q(arg: MalExpression) -> MalExpression:
+    if isinstance(arg, MalFunction):
+        f = cast(MalFunction, arg)
+        return MalBoolean(not f.is_macro())
+    return MalBoolean(False)
+
+
+def macro_q(arg: MalExpression) -> MalExpression:
+    if isinstance(arg, MalFunction):
+        f = cast(MalFunction, arg)
+        return MalBoolean(f.is_macro())
+    return MalBoolean(False)
+
+
 def not_implemented(func: str) -> MalExpression:
     raise MalNotImplementedException(func)
 
@@ -272,7 +305,7 @@ def get(map: MalExpression, key: MalExpression) -> MalExpression:
         return MalNil()
     if not isinstance(map, MalHash_map):
         raise MalInvalidArgumentException(map, "not a hash map")
-    if isinstance(key, MalString) and key in map.native():
+    if isinstance(key, (MalString, MalKeyword)) and key in map.native():
         return map.native()[key]
     else:
         return MalNil()
@@ -317,11 +350,11 @@ def vector(args: List[MalExpression]) -> MalExpression:
 def hash_map(args: List[MalExpression]) -> MalExpression:
     if len(args) % 2 != 0:
         raise MalSyntaxException("hash-map requires even number of arguments")
-    map_: Dict[MalString, MalExpression] = {}
+    map_: HashMapDict = {}
     for i in range(0, len(args) - 1, 2):
-        if not isinstance(args[i], MalString):
-            raise MalInvalidArgumentException(args[i], "not a string")
-        map_[cast(MalString, args[i])] = args[i + 1]
+        if not isinstance(args[i], (MalString, MalKeyword)):
+            raise MalInvalidArgumentException(args[i], "not a string or keyword")
+        map_[cast(Union[MalString, MalKeyword], args[i])] = args[i + 1]
     return MalHash_map(map_)
 
 
@@ -332,8 +365,8 @@ def assoc(args: List[MalExpression]) -> MalExpression:
         return args[0]
     if not isinstance(args[0], MalHash_map):
         raise MalInvalidArgumentException(args[0], "not a hash map")
-    dict_a_copy: Dict[MalString, MalExpression] = args[0].native().copy()
-    dict_b: Dict[MalString, MalExpression] = hash_map(args[1:]).native()
+    dict_a_copy: HashMapDict = args[0].native().copy()
+    dict_b: HashMapDict = hash_map(args[1:]).native()
     for key in dict_b:
         dict_a_copy[key] = dict_b[key]
     return MalHash_map(dict_a_copy)
@@ -344,7 +377,7 @@ def contains_q(args: List[MalExpression]) -> MalExpression:
         raise MalInvalidArgumentException(MalNil(), "contains? requires two arguments")
     if not isinstance(args[0], MalHash_map):
         raise MalInvalidArgumentException(args[0], "not a hash-map")
-    if not isinstance(args[1], MalString):
+    if not isinstance(args[1], (MalString, MalKeyword)):
         return MalBoolean(False)
     return MalBoolean(args[1] in args[0].native())
 
@@ -376,15 +409,17 @@ def dissoc(args: List[MalExpression]) -> MalExpression:
         return args[0]
     if not isinstance(args[0], MalHash_map):
         raise MalInvalidArgumentException(args[0], "not a hash map")
-    dict_a_copy: Dict[MalString, MalExpression] = args[0].native().copy()
+    dict_a_copy: HashMapDict = args[0].native().copy()
     list_b: List[MalExpression] = MalList(args[1:]).native()
     for key in list_b:
         if key in dict_a_copy:
-            del dict_a_copy[cast(MalString, key)]
+            del dict_a_copy[cast(Union[MalString, MalKeyword], key)]
     return MalHash_map(dict_a_copy)
 
 
 def swap(args: List[MalExpression]) -> MalExpression:
+    if len(args) < 2:
+        raise MalSyntaxException("requires atom and function")
     atom = args[0]
     if not isinstance(atom, MalAtom):
         raise MalInvalidArgumentException(atom, "not an atom")
@@ -402,7 +437,7 @@ def dot(args: List[MalExpression]) -> MalExpression:
     if not isinstance(python_object, MalPythonObject):
         raise MalInvalidArgumentException(python_object, "not python object")
     attr = args[1]
-    if not isinstance(attr, (MalString, MalSymbol)):
+    if not isinstance(attr, (MalString, MalSymbol, MalKeyword)):
         raise MalInvalidArgumentException(attr, "cannot convert to string")
     if len(args) == 3:
         value: Optional[MalExpression] = args[2]
@@ -471,13 +506,18 @@ ns = {
     "symbol?": MalFunctionCompiled(lambda args: symbol_q(require_args(args, 1)[0])),
     "readline": MalFunctionCompiled(lambda args: readline(require_args(args, 1)[0])),
     "time-ms": MalFunctionCompiled(lambda args: MalInt(int(time.time() * 1000))),
-    "meta": MalFunctionCompiled(lambda args: not_implemented("meta")),
-    "with-meta": MalFunctionCompiled(lambda args: not_implemented("with-meta")),
-    "fn?": MalFunctionCompiled(lambda args: not_implemented("fn?")),
-    "string?": MalFunctionCompiled(lambda args: not_implemented("string?")),
-    "number?": MalFunctionCompiled(lambda args: not_implemented("number?")),
+    "meta": MalFunctionCompiled(lambda args: meta(require_args(args, 1)[0])),
+    "with-meta": MalFunctionCompiled(lambda args: with_meta(*require_args(args, 2))),
+    "fn?": MalFunctionCompiled(lambda args: fn_q(require_args(args, 1)[0])),
+    "macro?": MalFunctionCompiled(lambda args: macro_q(require_args(args, 1)[0])),
+    "string?": MalFunctionCompiled(
+        lambda args: MalBoolean(isinstance(require_args(args, 1)[0], MalString))
+    ),
+    "number?": MalFunctionCompiled(
+        lambda args: MalBoolean(isinstance(require_args(args, 1)[0], MalInt))
+    ),
     "seq": MalFunctionCompiled(lambda args: seq(require_args(args, 1)[0])),
-    "conj": MalFunctionCompiled(lambda args: not_implemented("conj")),
+    "conj": MalFunctionCompiled(lambda args: conj(args)),
     "get": MalFunctionCompiled(lambda args: get(*require_args(args, 2))),
     "first": MalFunctionCompiled(lambda args: first(args)),
     "rest": MalFunctionCompiled(lambda args: rest(args)),

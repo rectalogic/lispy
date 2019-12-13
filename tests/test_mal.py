@@ -23,7 +23,9 @@ class TestMal(Runner):
                 repl_env = stepA_mal.init_repl_env(argv=[])
                 with self.subTest(test_file=test_basename):
                     self.run_tests(
-                        test_file, functools.partial(stepA_mal.rep, env=repl_env),
+                        test_file,
+                        functools.partial(stepA_mal.rep, env=repl_env),
+                        hard=True,
                     )
             finally:
                 os.chdir(cwd)
@@ -50,7 +52,7 @@ class TestMal(Runner):
                     return mal_function.call([MalString(s)]).native()
 
                 with self.subTest(test_file=test_basename):
-                    self.run_tests(test_file, rep)
+                    self.run_tests(test_file, rep, hard=True)
             finally:
                 os.chdir(cwd)
 

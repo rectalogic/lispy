@@ -1,13 +1,13 @@
 from __future__ import annotations
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from arpeggio import (  # type: ignore
+from arpeggio import (
     ParserPython,
     PTNodeVisitor,
     visit_parse_tree,
     ZeroOrMore,
 )
-from arpeggio import RegExMatch as _, NoMatch  # type: ignore
+from arpeggio import RegExMatch as _, NoMatch
 
 from .mal_types import (
     MalExpression,
@@ -22,6 +22,7 @@ from .mal_types import MalSymbol, MalString, MalKeyword, MalSyntaxException
 
 if TYPE_CHECKING:
     from arpeggio import ParseTreeNode, SemanticActionResults
+    from .mal_types import HashMapDict
 
 
 # Arpeggio grammar
@@ -32,6 +33,7 @@ def mExpression():
         mSpliceUnquotedExpression,
         mUnquotedExpression,
         mDerefExpression,
+        mWithMetaExpression,
         mList,
         mVector,
         mHash_map,
@@ -62,6 +64,10 @@ def mUnquotedExpression():
 
 def mDerefExpression():
     return "@", mExpression
+
+
+def mWithMetaExpression():
+    return "^", mExpression, mExpression
 
 
 def mList():
@@ -151,7 +157,7 @@ class ReadASTVisitor(PTNodeVisitor):
 
     def visit_mKeyword(
         self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalString:
+    ) -> MalKeyword:
         if not isinstance(node.value, str) or len(node.value) <= 1:
             raise MalSyntaxException("invalid keyword")
         return MalKeyword(node.value[1:])
@@ -169,9 +175,9 @@ class ReadASTVisitor(PTNodeVisitor):
     def visit_mHash_map(self, node: ParseTreeNode, children) -> MalHash_map:
         if len(children) % 2 != 0:
             raise MalSyntaxException("invalid hash-map entries")
-        hashmap: Dict[MalString, MalExpression] = {}
+        hashmap: HashMapDict = {}
         for i in range(0, len(children), 2):
-            if not isinstance(children[i], MalString):
+            if not isinstance(children[i], (MalString, MalKeyword)):
                 raise MalSyntaxException("hash-map key not string or keyword")
             hashmap[children[i]] = children[i + 1]
         return MalHash_map(hashmap)
@@ -219,6 +225,13 @@ class ReadASTVisitor(PTNodeVisitor):
         self, node: ParseTreeNode, children: SemanticActionResults
     ) -> MalList:
         return MalList([MalSymbol("deref"), children[0]])
+
+    def visit_mWithMetaExpression(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalList:
+        if len(children) != 2:
+            raise MalSyntaxException("^ macro requires two arguments")
+        return MalList([MalSymbol("with-meta"), children[1], children[0]])
 
 
 def comment():

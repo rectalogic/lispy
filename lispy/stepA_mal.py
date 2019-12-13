@@ -2,7 +2,7 @@ from __future__ import annotations
 import readline
 import sys
 import traceback
-from typing import Optional, List, Dict
+from typing import Optional, List, TYPE_CHECKING
 
 from . import core
 from . import reader
@@ -26,6 +26,9 @@ from .mal_types import (
     MalString,
 )
 
+if TYPE_CHECKING:
+    from .mal_types import HashMapDict
+
 
 def READ(x: str) -> MalExpression:
     return reader.read(x)
@@ -39,7 +42,7 @@ def eval_ast(ast: MalExpression, env: Env) -> MalExpression:
     if isinstance(ast, MalVector):
         return MalVector([EVAL(x, env) for x in ast.native()])
     if isinstance(ast, MalHash_map):
-        new_dict: Dict[MalString, MalExpression] = {}
+        new_dict: HashMapDict = {}
         for key in ast.native():
             new_dict[key] = EVAL(ast.native()[key], env)
         return MalHash_map(new_dict)
