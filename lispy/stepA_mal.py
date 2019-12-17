@@ -105,8 +105,9 @@ def EVAL(ast: MalExpression, env: Env) -> MalExpression:
             value = EVAL(ast_native[2], env)
             if not isinstance(value, MalFunction):
                 raise MalInvalidArgumentException(value, "not a function")
-            value.make_macro()
-            return env.set(name, value)
+            macro = value.copy()
+            macro.make_macro()
+            return env.set(name, macro)
         elif first_str == "let*":
             if len(ast_native) != 3:
                 raise MalSyntaxException("let* must be length 3")

@@ -214,10 +214,14 @@ class MalNotImplementedException(MalException):
         super().__init__(MalString("not implemented: " + func))
 
 
-class MalFunction(MalExpression, MalMeta, metaclass=abc.ABCMeta):
+class MalFunction(MalExpression, MalMeta):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._is_macro = False
+
+    @abc.abstractmethod
+    def copy(self) -> MalFunction:
+        pass
 
     def __eq__(self, other):
         if super().__eq__(other):
@@ -386,6 +390,7 @@ class MalVector(MalExpression, MalMeta):
 
 class MalHash_map(MalExpression, MalMeta):
     def __init__(self, values: HashMapDict) -> None:
+        super().__init__()
         self._dict = values.copy()
 
     def copy(self) -> MalHash_map:
