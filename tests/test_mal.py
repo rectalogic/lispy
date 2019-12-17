@@ -10,12 +10,35 @@ from tests.runner import Runner
 
 log = logging.getLogger(__name__)
 
+STEP_TEST_FILES = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "step*.mal")))
+EXTRA_TEST_FILES = sorted(os.path.join(os.path.dirname(__file__), "lib", f)
+                          for f in [
+                              "protocols.mal",
+                              "alias-hacks.mal",
+                              "equality.mal",
+                              "load-file-once.mal",
+                              # "memoize.mal",
+                              "pprint.mal",
+                              "protocols.mal",
+                              "reducers.mal",
+                              "test_cascade.mal",
+                              "threading.mal",
+                              "trivial.mal",
+                          ])
+
 
 class TestMal(Runner):
-    def test_mal(self):
-        for test_file in sorted(
-            glob.glob(os.path.join(os.path.dirname(__file__), "step*.mal"))
-        ):
+    def test_mal_steps(self):
+        self.run_mal(STEP_TEST_FILES)
+
+    def test_mal_extra(self):
+        self.run_mal(STEP_TEST_FILES)
+
+    def test_mal_perf(self):
+        self.run_mal(glob.glob(os.path.join(os.path.dirname(__file__), "perf*.mal")))
+
+    def run_mal(self, test_files):
+        for test_file in test_files:
             test_basename = os.path.basename(test_file)
             cwd = os.getcwd()
             try:
@@ -30,13 +53,14 @@ class TestMal(Runner):
             finally:
                 os.chdir(cwd)
 
-    def test_mal_in_mal(self):
-        EXCLUDES = ("step5_tco.mal", "step_test_errors.mal")
-        for test_file in sorted(
-            glob.glob(os.path.join(os.path.dirname(__file__), "step*.mal"))
-        ):
+    def test_mal_in_mal_steps(self):
+        excludes = ("step5_tco.mal", "step_test_errors.mal")
+        self.run_mal_in_mal(STEP_TEST_FILES, excludes)
+
+    def run_mal_in_mal(self, test_files, excludes=None):
+        for test_file in test_files:
             test_basename = os.path.basename(test_file)
-            if test_basename in EXCLUDES:
+            if excludes and test_basename in excludes:
                 continue
             cwd = os.getcwd()
             try:
