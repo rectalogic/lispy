@@ -1,10 +1,11 @@
 from __future__ import annotations
 import time
 import operator
-from typing import List, Union, NoReturn, Optional, cast, TYPE_CHECKING
+from typing import List, Union, NoReturn, Optional, Callable, Any, cast, TYPE_CHECKING
 
 from . import reader
 from .mal_types import (
+    MalFloat,
     MalInt,
     MalNil,
     MalList,
@@ -35,6 +36,23 @@ if TYPE_CHECKING:
 
 def python_print(s: str):
     print(s)
+
+
+def math(
+    op: Callable[[Any, Any], Any], a: MalExpression, b: MalExpression
+) -> MalExpression:
+    r = op(a.native(), b.native())
+    if isinstance(r, float):
+        return MalFloat(r)
+    else:
+        return MalInt(r)
+
+
+def div(a: Any, b: Any) -> Union[int, float]:
+    if isinstance(a, float) or isinstance(b, float):
+        return operator.truediv(a, b)
+    else:
+        return operator.floordiv(a, b)
 
 
 def prn(args: List[MalExpression]) -> MalNil:
@@ -459,20 +477,10 @@ def require_args(args: List[MalExpression], count: int) -> List[MalExpression]:
 
 
 ns = {
-    "+": MalFunctionCompiled(
-        lambda args: MalInt(operator.add(*[a.native() for a in require_args(args, 2)]))
-    ),
-    "-": MalFunctionCompiled(
-        lambda args: MalInt(operator.sub(*[a.native() for a in require_args(args, 2)]))
-    ),
-    "*": MalFunctionCompiled(
-        lambda args: MalInt(operator.mul(*[a.native() for a in require_args(args, 2)]))
-    ),
-    "/": MalFunctionCompiled(
-        lambda args: MalInt(
-            operator.floordiv(*[a.native() for a in require_args(args, 2)])
-        )
-    ),
+    "+": MalFunctionCompiled(lambda args: math(operator.add, *require_args(args, 2))),
+    "-": MalFunctionCompiled(lambda args: math(operator.sub, *require_args(args, 2))),
+    "*": MalFunctionCompiled(lambda args: math(operator.mul, *require_args(args, 2))),
+    "/": MalFunctionCompiled(lambda args: math(div, *require_args(args, 2))),
     "prn": MalFunctionCompiled(lambda args: prn(args)),
     "pr-str": MalFunctionCompiled(lambda args: pr_str(args)),
     "println": MalFunctionCompiled(lambda args: println(args)),
@@ -520,7 +528,9 @@ ns = {
         lambda args: MalBoolean(isinstance(require_args(args, 1)[0], MalString))
     ),
     "number?": MalFunctionCompiled(
-        lambda args: MalBoolean(isinstance(require_args(args, 1)[0], MalInt))
+        lambda args: MalBoolean(
+            isinstance(require_args(args, 1)[0], (MalFloat, MalInt))
+        )
     ),
     "seq": MalFunctionCompiled(lambda args: seq(require_args(args, 1)[0])),
     "conj": MalFunctionCompiled(lambda args: conj(args)),

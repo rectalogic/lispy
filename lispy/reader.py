@@ -11,6 +11,7 @@ from arpeggio import RegExMatch as _, NoMatch
 
 from .mal_types import (
     MalExpression,
+    MalFloat,
     MalInt,
     MalList,
     MalBoolean,
@@ -37,6 +38,7 @@ def mExpression():
         mList,
         mVector,
         mHash_map,
+        mFloat,
         mInt,
         mString,
         mKeyword,
@@ -82,6 +84,10 @@ def mHash_map():
     return ("{", ZeroOrMore(mExpression), "}")
 
 
+def mFloat():
+    return _(r"-?[0123456789]*\.[0123456789]+")
+
+
 def mInt():
     return _(r"-?[0123456789]+")
 
@@ -111,6 +117,11 @@ class ReadASTVisitor(PTNodeVisitor):
         self, node: ParseTreeNode, children: SemanticActionResults
     ) -> MalExpression:
         return children[0]  # children should already be Mal types
+
+    def visit_mFloat(
+        self, node: ParseTreeNode, children: SemanticActionResults
+    ) -> MalFloat:
+        return MalFloat(float(node.value))
 
     def visit_mInt(
         self, node: ParseTreeNode, children: SemanticActionResults

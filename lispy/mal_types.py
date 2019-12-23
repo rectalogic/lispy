@@ -64,6 +64,8 @@ class MalPythonObject(MalExpression):
             return MalString(obj)
         if isinstance(obj, bool):
             return MalBoolean(obj)
+        if isinstance(obj, float):
+            return MalFloat(obj)
         if isinstance(obj, int):
             return MalInt(obj)
         if obj is None:
@@ -374,6 +376,19 @@ class MalFunctionPython(MalFunction, MalPythonObject):
             raise
         except Exception as e:
             raise MalException(MalString(f"'{repr(e)}' raised from python")) from e
+
+
+class MalFloat(MalExpression):
+    def __init__(self, value: float) -> None:
+        if not isinstance(value, float):
+            raise MalSyntaxException(f"{value} not a float")
+        self._value = value
+
+    def readable_str(self) -> str:
+        return str(self._value)
+
+    def native(self) -> float:
+        return self._value
 
 
 class MalInt(MalExpression):
