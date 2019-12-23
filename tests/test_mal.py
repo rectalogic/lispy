@@ -10,11 +10,11 @@ from tests.runner import Runner
 
 log = logging.getLogger(__name__)
 
-STEP_TEST_FILES = sorted(
-    glob.glob(os.path.join(os.path.dirname(__file__), "step*.mal"))
-)
+TEST_DIR = os.path.join(os.path.dirname(__file__), "mal", "tests")
+
+STEP_TEST_FILES = sorted(glob.glob(os.path.join(TEST_DIR, "step*.mal")))
 EXTRA_TEST_FILES = sorted(
-    os.path.join(os.path.dirname(__file__), "lib", f)
+    os.path.join(TEST_DIR, "lib", f)
     for f in [
         "protocols.mal",
         "alias-hacks.mal",
@@ -39,14 +39,14 @@ class TestMal(Runner):
         self.run_mal(STEP_TEST_FILES)
 
     def test_mal_perf(self):
-        self.run_mal(glob.glob(os.path.join(os.path.dirname(__file__), "perf*.mal")))
+        self.run_mal(glob.glob(os.path.join(TEST_DIR, "perf*.mal")))
 
     def run_mal(self, test_files):
         for test_file in test_files:
             test_basename = os.path.basename(test_file)
             cwd = os.getcwd()
             try:
-                os.chdir(os.path.dirname(__file__))
+                os.chdir(os.path.join(TEST_DIR))
                 repl_env = stepA_mal.init_repl_env(argv=[])
                 with self.subTest(test_file=test_basename):
                     self.run_tests(
@@ -68,11 +68,9 @@ class TestMal(Runner):
                 continue
             cwd = os.getcwd()
             try:
-                os.chdir(os.path.dirname(__file__))
+                os.chdir(os.path.join(TEST_DIR))
                 repl_env = stepA_mal.init_repl_env(argv=[test_file])
-                mal_script = os.path.join(
-                    os.path.dirname(__file__), "..", "mal", "stepA_mal.mal"
-                )
+                mal_script = os.path.join(TEST_DIR, "..", "mal", "stepA_mal.mal")
                 stepA_mal.load_file(repl_env, mal_script)
                 mal_function = repl_env.get("rep")
 

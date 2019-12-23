@@ -39,7 +39,7 @@ class TestStep6(unittest.TestCase):
         )
 
     def test_step6_slurp(self):
-        f = os.path.join(os.path.dirname(__file__), "test.txt")
+        f = os.path.join(os.path.dirname(__file__), "mal", "tests", "test.txt")
         self.assertEqual(
             '"A line of text\\n"', step6_file.rep(f'(slurp "{f}")', self._repl_env)
         )

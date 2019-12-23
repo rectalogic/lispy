@@ -9,6 +9,7 @@ import dataclasses
 
 from lispy import stepA_mal
 from tests.runner import Runner
+from .test_mal import TEST_DIR
 
 log = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ INJECTIONS = {
 class TestNative(Runner):
     def test_native(self):
         for test_file in sorted(
-            glob.glob(os.path.join(os.path.dirname(__file__), "native*.mal"))
+            glob.glob(os.path.join(TEST_DIR, "native*.mal"))
         ):
             test_basename = os.path.basename(test_file)
             cwd = os.getcwd()
