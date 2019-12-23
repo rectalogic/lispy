@@ -10,21 +10,25 @@ from tests.runner import Runner
 
 log = logging.getLogger(__name__)
 
-STEP_TEST_FILES = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "step*.mal")))
-EXTRA_TEST_FILES = sorted(os.path.join(os.path.dirname(__file__), "lib", f)
-                          for f in [
-                              "protocols.mal",
-                              "alias-hacks.mal",
-                              "equality.mal",
-                              "load-file-once.mal",
-                              # "memoize.mal",
-                              "pprint.mal",
-                              "protocols.mal",
-                              "reducers.mal",
-                              "test_cascade.mal",
-                              "threading.mal",
-                              "trivial.mal",
-                          ])
+STEP_TEST_FILES = sorted(
+    glob.glob(os.path.join(os.path.dirname(__file__), "step*.mal"))
+)
+EXTRA_TEST_FILES = sorted(
+    os.path.join(os.path.dirname(__file__), "lib", f)
+    for f in [
+        "protocols.mal",
+        "alias-hacks.mal",
+        "equality.mal",
+        "load-file-once.mal",
+        # "memoize.mal",
+        "pprint.mal",
+        "protocols.mal",
+        "reducers.mal",
+        "test_cascade.mal",
+        "threading.mal",
+        "trivial.mal",
+    ]
+)
 
 
 class TestMal(Runner):

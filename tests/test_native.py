@@ -36,6 +36,9 @@ class Person:
     def is_friend(self, persion: Person) -> bool:
         return bool(self.friends and persion in self.friends)
 
+    def raise_error(self):
+        raise ValueError("this method always raises")
+
 
 @dataclasses.dataclass
 class Name:

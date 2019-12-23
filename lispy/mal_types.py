@@ -66,7 +66,7 @@ class MalPythonObject(MalExpression):
         except MalException:
             raise
         except Exception as e:
-            raise MalException(MalString(f"{e} raised from python")) from e
+            raise MalException(MalString(f"'{repr(e)}' raised from python")) from e
 
 
 class MalString(MalExpression):
@@ -349,7 +349,7 @@ class MalFunctionPython(MalFunction, MalPythonObject):
         except MalException:
             raise
         except Exception as e:
-            raise MalException(MalString(f"{e} raised from python")) from e
+            raise MalException(MalString(f"'{repr(e)}' raised from python")) from e
 
 
 class MalInt(MalExpression):

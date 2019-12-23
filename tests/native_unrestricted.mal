@@ -47,3 +47,7 @@
 ;; keyword args
 (make-address :state "NY" :city "New York")
 ;=>"Address(number=0, city='New York', state='NY')"
+
+(try* ((. p1 'raise_error)) (catch* exc (prn "exc is:" exc)))
+;/"exc is:" "'ValueError\('this method always raises'\)' raised from python"
+;=>nil
