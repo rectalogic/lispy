@@ -18,7 +18,7 @@ class Lispy:
         self.env = init_repl_env(argv=[], restricted=restricted)
         self.verbose = verbose
         if injections:
-            self.env.inject_native(injections)
+            self.env.inject_native(injections, restrictions)
 
     def eval(self, expr: str) -> Any:
         return expression_to_native(EVAL(READ(expr), self.env))

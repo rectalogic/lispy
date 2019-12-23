@@ -230,7 +230,7 @@ def init_repl_env(argv: Optional[List[str]] = None, restricted: bool = False) ->
             env.set(key, core.ns[key])
 
     env.set("eval", MalFunctionCompiled(lambda args: eval_func(args, env)))
-    rep('(def! *host-language* "python")', env)
+    rep('(def! *host-language* "python.lispy")', env)
 
     if not restricted:
         rep(

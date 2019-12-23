@@ -1,11 +1,21 @@
 from __future__ import annotations
-from typing import Callable, Dict, List, Any, Optional, Union, TYPE_CHECKING, cast
+from typing import (
+    Callable,
+    Dict,
+    List,
+    Iterable,
+    Any,
+    Optional,
+    Union,
+    TYPE_CHECKING,
+    cast,
+)
 import abc
 
 if TYPE_CHECKING:
     from .env import Env
 
-    Restrictions = Dict[type, List[str]]
+    Restrictions = Dict[type, Iterable[str]]
     HashMapDict = Dict[Union["MalString", "MalKeyword"], "MalExpression"]
 
 
