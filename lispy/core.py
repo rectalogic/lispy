@@ -446,6 +446,12 @@ def dot(args: List[MalExpression]) -> MalExpression:
     return python_object.dot(attr.native(), value)
 
 
+def native(obj: MalExpression) -> MalExpression:
+    if not isinstance(obj, MalPythonObject):
+        raise MalInvalidArgumentException(obj, "not a Python object")
+    return obj.to_expression()
+
+
 def require_args(args: List[MalExpression], count: int) -> List[MalExpression]:
     if len(args) != count:
         raise MalSyntaxException("not enough arguments")
@@ -537,4 +543,5 @@ ns = {
     "dissoc": MalFunctionCompiled(lambda args: dissoc(args)),
     "swap!": MalFunctionCompiled(lambda args: swap(args)),
     ".": MalFunctionCompiled(lambda args: dot(args)),
+    "$": MalFunctionCompiled(lambda args: native(require_args(args, 1)[0])),
 }

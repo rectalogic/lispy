@@ -58,6 +58,20 @@ class MalPythonObject(MalExpression):
     def restrictions(self) -> Optional[Restrictions]:
         return self._restrictions
 
+    def to_expression(self) -> MalExpression:
+        obj = self.native()
+        if isinstance(obj, str):
+            return MalString(obj)
+        if isinstance(obj, bool):
+            return MalBoolean(obj)
+        if isinstance(obj, int):
+            return MalInt(obj)
+        if obj is None:
+            return MalNil()
+        if isinstance(obj, (list, tuple)):
+            return MalList([expression_from_native(x, self.restrictions) for x in obj])
+        return self
+
     def dot(self, attr: str, value: Optional[MalExpression]) -> MalExpression:
         if self._restrictions:
             attrs = self._restrictions.get(type(self._python_native))
@@ -137,12 +151,12 @@ class MalMeta(metaclass=abc.ABCMeta):
 
 
 class MalList(MalExpression, MalMeta):
-    def __init__(self, values: List[MalExpression]) -> None:
+    def __init__(self, values: Iterable[MalExpression]) -> None:
         super().__init__()
-        for x in values:
+        self._values = list(values)
+        for x in self._values:
             if not isinstance(x, MalExpression):
                 raise MalInvalidArgumentException(x, "not an expression")
-        self._values = values
 
     def __eq__(self, other):
         if isinstance(other, (MalList, MalVector)):
@@ -150,7 +164,7 @@ class MalList(MalExpression, MalMeta):
         return False
 
     def copy(self) -> MalList:
-        return self.__class__(list(self._values))
+        return self.__class__(self._values)
 
     def readable_str(self) -> str:
         return "(" + " ".join(map(lambda x: x.readable_str(), self._values)) + ")"
@@ -376,9 +390,12 @@ class MalInt(MalExpression):
 
 
 class MalVector(MalExpression, MalMeta):
-    def __init__(self, values: List[MalExpression]) -> None:
+    def __init__(self, values: Iterable[MalExpression]) -> None:
         super().__init__()
-        self._values = values
+        self._values = list(values)
+        for x in self._values:
+            if not isinstance(x, MalExpression):
+                raise MalInvalidArgumentException(x, "not an expression")
 
     def __eq__(self, other):
         if isinstance(other, (MalList, MalVector)):
@@ -386,7 +403,7 @@ class MalVector(MalExpression, MalMeta):
         return False
 
     def copy(self) -> MalVector:
-        return self.__class__(list(self._values))
+        return self.__class__(self._values)
 
     def readable_str(self) -> str:
         return "[" + " ".join(map(lambda x: x.readable_str(), self._values)) + "]"
@@ -473,16 +490,6 @@ def expression_from_native(
 ) -> MalExpression:
     if callable(obj):
         return MalFunctionPython(obj, restrictions)
-    if isinstance(obj, str):
-        return MalString(obj)
-    if isinstance(obj, bool):
-        return MalBoolean(obj)
-    if isinstance(obj, int):
-        return MalInt(obj)
-    if obj is None:
-        return MalNil()
-    if isinstance(obj, (list, tuple)):
-        return MalList([expression_from_native(x, restrictions) for x in obj])
     return MalPythonObject(obj, restrictions)
 
 

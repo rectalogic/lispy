@@ -5,10 +5,13 @@
 ;/.* Access restricted to attribute \\"given\\""
 
 (. p1-name 'family)
+;=>"'Duck'"
+
+($ (. p1-name 'family))
 ;=>"Duck"
 
 (. p2 'friends)
 ;/.* Access restricted to attribute \\"friends\\""
 
-((. p2 'is_friend) p1)
+($ ((. p2 'is_friend) p1))
 ;=>true

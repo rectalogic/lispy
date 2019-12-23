@@ -6,10 +6,11 @@ import unittest
 import glob
 import functools
 import dataclasses
+from urllib.parse import urlparse
 
 from lispy import rep
 from tests.runner import Runner
-from .test_mal import TEST_DIR
+from tests.test_mal import TEST_DIR
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ INJECTIONS = {
             "p3": p3,
             "make-name": Name,
             "make-address": Address,
+            "urlparse": urlparse,
         },
     },
     "native_restricted.mal": {
@@ -91,9 +93,7 @@ INJECTIONS = {
 
 class TestNative(Runner):
     def test_native(self):
-        for test_file in sorted(
-            glob.glob(os.path.join(TEST_DIR, "native*.mal"))
-        ):
+        for test_file in sorted(glob.glob(os.path.join(TEST_DIR, "native*.mal"))):
             test_basename = os.path.basename(test_file)
             cwd = os.getcwd()
             try:
