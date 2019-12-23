@@ -1,7 +1,7 @@
 import unittest
 
 from lispy import mal_types
-from lispy import stepA_mal as step3_env
+from lispy import rep as step3_env
 from lispy.env import Env
 from lispy.mal_types import MalList, MalInt
 from lispy.mal_types import MalSymbol

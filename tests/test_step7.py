@@ -1,6 +1,6 @@
 import unittest
 
-from lispy import stepA_mal as step7_quote
+from lispy import rep as step7_quote
 
 
 class TestStep7(unittest.TestCase):

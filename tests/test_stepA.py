@@ -1,6 +1,6 @@
 import unittest
 
-from lispy import stepA_mal
+from lispy import rep as stepA_mal
 
 
 class TestStepA(unittest.TestCase):

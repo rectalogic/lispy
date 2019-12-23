@@ -2,7 +2,7 @@ import os
 import unittest
 
 from lispy import reader
-from lispy import stepA_mal as step6_file
+from lispy import rep as step6_file
 from lispy.env import Env
 from lispy.mal_types import MalList, MalAtom, MalInt
 from lispy.mal_types import MalSyntaxException, MalString

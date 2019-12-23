@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Dict, Optional, Any, TYPE_CHECKING
-from .stepA_mal import init_repl_env, repl, load_file, EVAL, READ
+from .rep import init_repl_env, repl, load_file, EVAL, READ
 from .mal_types import expression_to_native
 
 if TYPE_CHECKING:

@@ -1,6 +1,6 @@
 import unittest
 
-from lispy import stepA_mal as step5_tco
+from lispy import rep as step5_tco
 
 
 class TestStep5(unittest.TestCase):

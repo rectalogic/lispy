@@ -4,7 +4,7 @@ import functools
 import logging
 import unittest
 
-from lispy import stepA_mal
+from lispy import rep
 from lispy.mal_types import MalString
 from tests.runner import Runner
 
@@ -47,12 +47,10 @@ class TestMal(Runner):
             cwd = os.getcwd()
             try:
                 os.chdir(os.path.join(TEST_DIR))
-                repl_env = stepA_mal.init_repl_env(argv=[])
+                repl_env = rep.init_repl_env(argv=[])
                 with self.subTest(test_file=test_basename):
                     self.run_tests(
-                        test_file,
-                        functools.partial(stepA_mal.rep, env=repl_env),
-                        hard=True,
+                        test_file, functools.partial(rep.rep, env=repl_env), hard=True,
                     )
             finally:
                 os.chdir(cwd)
@@ -69,16 +67,16 @@ class TestMal(Runner):
             cwd = os.getcwd()
             try:
                 os.chdir(os.path.join(TEST_DIR))
-                repl_env = stepA_mal.init_repl_env(argv=[test_file])
+                repl_env = rep.init_repl_env(argv=[test_file])
                 mal_script = os.path.join(TEST_DIR, "..", "mal", "stepA_mal.mal")
-                stepA_mal.load_file(repl_env, mal_script)
+                rep.load_file(repl_env, mal_script)
                 mal_function = repl_env.get("rep")
 
-                def rep(s):
+                def mal_rep(s):
                     return mal_function.call([MalString(s)]).native()
 
                 with self.subTest(test_file=test_basename):
-                    self.run_tests(test_file, rep, hard=True)
+                    self.run_tests(test_file, mal_rep, hard=True)
             finally:
                 os.chdir(cwd)
 

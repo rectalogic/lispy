@@ -1,6 +1,6 @@
 import unittest
 
-from lispy import stepA_mal as step4_if_fn_do
+from lispy import rep as step4_if_fn_do
 from lispy.env import Env
 from lispy.mal_types import MalInvalidArgumentException
 from lispy.mal_types import MalList, MalInt, MalFunctionCompiled, MalBoolean

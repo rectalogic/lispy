@@ -1,7 +1,7 @@
 import unittest
 
 from lispy import core
-from lispy import stepA_mal as step8_macros
+from lispy import rep as step8_macros
 from lispy.env import Env
 from lispy.mal_types import MalFunctionCompiled, MalInt, MalFunctionRaw, MalList
 from lispy.mal_types import MalInvalidArgumentException, MalIndexError

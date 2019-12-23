@@ -7,7 +7,7 @@ import glob
 import functools
 import dataclasses
 
-from lispy import stepA_mal
+from lispy import rep
 from tests.runner import Runner
 from .test_mal import TEST_DIR
 
@@ -98,11 +98,11 @@ class TestNative(Runner):
             cwd = os.getcwd()
             try:
                 os.chdir(os.path.dirname(__file__))
-                repl_env = stepA_mal.init_repl_env(argv=[])
+                repl_env = rep.init_repl_env(argv=[])
                 repl_env.inject_native(**INJECTIONS[test_basename])
                 with self.subTest(test_file=test_basename):
                     self.run_tests(
-                        test_file, functools.partial(stepA_mal.rep, env=repl_env),
+                        test_file, functools.partial(rep.rep, env=repl_env),
                     )
             finally:
                 os.chdir(cwd)
