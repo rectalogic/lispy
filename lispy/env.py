@@ -1,8 +1,10 @@
 from __future__ import annotations
 from typing import Optional, Dict, List, Any, TYPE_CHECKING
+import time
 
 from .mal_types import (
     MalExpression,
+    MalExecutionLimitError,
     MalSymbol,
     MalList,
     MalUnknownSymbolException,
@@ -22,8 +24,12 @@ class Env(object):
         outer: Optional[Env],
         binds: Optional[List[MalExpression]] = None,
         exprs: Optional[List[MalExpression]] = None,
+        execution_limit: Optional[ExecutionLimit] = None,
     ) -> None:
         self._outer = outer
+        self._execution_limit: Optional[
+            ExecutionLimit
+        ] = outer._execution_limit if outer else execution_limit
         self._data: Dict[str, MalExpression] = {}
         if binds is not None and exprs is not None:
             for x in range(0, len(binds)):
@@ -62,9 +68,30 @@ class Env(object):
         for var, obj in injections.items():
             self.set(var, expression_from_native(obj, restrictions))
 
+    def check_execution_limit(self):
+        if self._execution_limit:
+            self._execution_limit.check()
+
+    def reset_execution_limit(self):
+        if self._execution_limit:
+            self._execution_limit.reset()
+
     def __repr__(self) -> str:
         env_str = "{"
         for d in self._data:
             env_str += str(d) + ": " + str(self._data[d]) + ", "
         env_str += "}"
         return f"environment: (data: {env_str} outer: {repr(self._outer) if self._outer is not None else 'None'})"
+
+
+class ExecutionLimit:
+    def __init__(self, time_limit: float):
+        self.time_limit = time_limit
+        self.reset()
+
+    def reset(self):
+        self.start_time = time.perf_counter()
+
+    def check(self):
+        if (time.perf_counter() - self.start_time) >= self.time_limit:
+            raise MalExecutionLimitError("execution time limit exceeded")

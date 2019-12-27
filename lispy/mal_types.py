@@ -212,6 +212,11 @@ class MalIndexError(MalException):
         super().__init__(MalString("Index out of bounds: " + str(index)))
 
 
+class MalExecutionLimitError(MalException):
+    def __init__(self, message: str) -> None:
+        super().__init__(MalString(message))
+
+
 class MalSyntaxException(MalException):
     def __init__(self, message: str) -> None:
         super().__init__(MalString(message))

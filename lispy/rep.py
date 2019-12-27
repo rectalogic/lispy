@@ -28,6 +28,7 @@ from .mal_types import (
 
 if TYPE_CHECKING:
     from .mal_types import HashMapDict
+    from .env import ExecutionLimit
 
 
 def READ(x: str) -> MalExpression:
@@ -86,6 +87,7 @@ def quasiquote(ast: MalExpression) -> MalExpression:
 def EVAL(ast: MalExpression, env: Env) -> MalExpression:
     while True:
         # print("EVAL: " + str(ast))
+        env.check_execution_limit()
         ast = macroexpand(ast, env)
         ast_native = ast.native()
         if not isinstance(ast, MalList):
@@ -217,14 +219,18 @@ def rep(x: str, env: Env) -> str:
     return PRINT(EVAL(READ(x), env))
 
 
-def init_repl_env(argv: Optional[List[str]] = None, restricted: bool = False) -> Env:
+def init_repl_env(
+    argv: Optional[List[str]] = None,
+    restricted: bool = False,
+    execution_limit: Optional[ExecutionLimit] = None,
+) -> Env:
     def eval_func(args: List[MalExpression], env: Env) -> MalExpression:
         a0 = args[0]
         if not isinstance(a0, MalExpression):
             raise MalInvalidArgumentException(a0, "not an expression")
         return EVAL(a0, env)
 
-    env = Env(None)
+    env = Env(None, execution_limit=execution_limit)
     for key in core.ns:
         if not restricted or key not in {"slurp", "readline"}:
             env.set(key, core.ns[key])
@@ -311,6 +317,7 @@ def repl(env: Env, verbose: bool = False):
         try:
             line = input("user> ")
             readline.add_history(line)
+            env.reset_execution_limit()
             core.python_print(rep_handling_exceptions(line, env, verbose))
         except EOFError:
             eof = True
