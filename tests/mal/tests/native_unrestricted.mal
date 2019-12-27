@@ -1,0 +1,59 @@
+(def! p1-name (. p1 'name))
+;=>"Name(given='Donald', family='Duck')"
+
+($ (= ($ (. p1-name 'given)) "Donald"))
+;=>true
+
+($ (. p1 'friends))
+;=>nil
+
+($ (= p2 (nth ($ (. p3 'friends)) 1)))
+;=>true
+
+($ ((. p3 'is_friend) p1))
+;=>true
+
+(def! name (make-name "Jolly", "Roger"))
+;=>"Name(given='Jolly', family='Roger')"
+
+($ ((. p1 'set_name) name))
+;=>nil
+
+(. (. p1 'name) 'given)
+;=>"'Jolly'"
+
+(. p1 'friends [p2])
+;=>nil
+
+($ ((. p1 'is_friend) p2))
+;=>true
+
+($ (. p3 'friends nil))
+;=>nil
+
+($ ((. p3 'is_friend) p1))
+;=>false
+
+(< ($ (. (. p3 'address) :number)) 34)
+;=>true
+
+;; keyword args
+(make-address 20 :state "NY")
+;=>"Address(number=20, city=None, state='NY')"
+
+(make-address 20 :state "NY" :city)
+;/:city: invalid argument: expected value following keyword"
+
+;; keyword args
+(make-address :state "NY" :city "New York")
+;=>"Address(number=0, city='New York', state='NY')"
+
+(try* ((. p1 'raise_error)) (catch* exc (prn "exc is:" exc)))
+;/"exc is:" "'ValueError\('this method always raises'\)' raised from python"
+;=>nil
+
+(def! u (urlparse "https://github.com/rectalogic/lispy"))
+;=>"ParseResult(scheme='https', netloc='github.com', path='/rectalogic/lispy', params='', query='', fragment='')"
+
+($ u)
+;=>("'https'" "'github.com'" "'/rectalogic/lispy'" "''" "''" "''")

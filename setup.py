@@ -1,7 +1,7 @@
 import re
 import sys
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.command.test import test
 
 
@@ -37,23 +37,23 @@ class Tox(test):
 
 setup(
     name="lispy",
-    version=get_version("lispy.py"),
+    version=get_version("lispy/__init__.py"),
     url="https://github.com/rectalogic/lispy",
-    license="MIT License",
-    author="Andrew Wason",
-    author_email="rectalogic@rectalogic.com",
-    description="Scheme interpreter extension language for Python",
+    license="Mozilla Public License, v. 2.0",
+    description="Clojure interpreter extension language for Python based on mal (Make a Lisp)",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    py_modules=["lispy"],
+    packages=find_packages(include=["lispy", "lispy.*"]),
+    install_requires=["Arpeggio>=1.9.2"],
     tests_require=["tox"],
     cmdclass={"test": Tox},
+    python_requires="~=3.7",
     classifiers=[
         "Intended Audience :: Developers",
-        # http://www.norvig.com/license.html
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3 :: Only",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
 )

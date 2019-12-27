@@ -1,22 +1,28 @@
 # Lispy
 
-[![Build Status](https://travis-ci.org/rectalogic/lispy.svg?branch=master)](https://travis-ci.org/rectalogic/lispy)
+[![Actions Status](https://github.com/rectalogic/lispy/workflows/Test/badge.svg)](https://github.com/rectalogic/lispy/actions)
 
-Scheme based Python extension language, derived from Peter Norvigs [lispy](https://norvig.com/lispy2.html).
-Ported to Python 3 and refactored into a class to contain all interpreter state.
-Also added the ability to expose a restricted subset of python methods and properties into scheme.
+Lisp based Python extension language, originally derived from Peter Norvigs [lispy](https://norvig.com/lispy2.html),
+but now a fork of [mal (Make-A-Lisp) python.2](https://github.com/kanaka/mal#python2-3x)
+Refactored into a `Lispy` class to contain all interpreter state.
+Also added the ability to expose a restricted subset of python methods and properties into the interpreter.
 
 ```pycon
 >>> import lispy
 >>> from urllib.parse import urlparse, ParseResult
->>> l = lispy.Lispy(env=lispy.Env(urlparse=urlparse), dotaccess={ParseResult: {"scheme", "netloc", "path"}})
+>>> l = lispy.Lispy(injections={"urlparse": urlparse}, restrictions={ParseResult: {"scheme", "netloc", "path"}})
 >>> l.repl()
-Lispy version 2.0
-lispy> (define u (urlparse "https://github.com/rectalogic/lispy"))
-lispy> u
-ParseResult(scheme='https', netloc='github.com', path='/rectalogic/lispy', params='', query='', fragment='')
-lispy> (. u 'path)
-"/rectalogic/lispy"
-lispy> (. u 'netloc)
-"github.com"
+Mal [python.lispy]
+user> (def! u (urlparse "https://github.com/rectalogic/lispy"))
+"ParseResult(scheme='https', netloc='github.com', path='/rectalogic/lispy', params='', query='', fragment='')"
+user> (. u 'path)
+"'/rectalogic/lispy'"
+user> (. u 'netloc)
+"'github.com'"
+user> (. u 'query)
+ERROR: "\"ParseResult(scheme='https', netloc='github.com', path='/rectalogic/lispy', params='', query='', fragment='')\": invalid argument: Access restricted to attribute \"query\""
+user> ($ u)
+("'https'" "'github.com'" "'/rectalogic/lispy'" "''" "''" "''")
+user> (nth ($ u) 2)
+"'/rectalogic/lispy'"
 ```

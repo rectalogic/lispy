@@ -1,0 +1,29 @@
+(cons :foo :bar)
+;/ not a list or vector"
+
+(keyword ())
+;/ not a string"
+
+(hash-map "a" 1 "b")
+;/ requires even number of arguments"
+
+(let* (a 123) 'a)
+;=>a
+
+a
+;/'a' not found
+
+(let* (a 123) 'a 'b)
+;/ must be length 3"
+
+(let* (a 123 b) 'a)
+;/must be an even length"
+
+(false?)
+;/not enough arguments"
+
+(>)
+;/not enough arguments"
+
+(> 2)
+;/not enough arguments"
