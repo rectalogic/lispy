@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import re
 import logging
 import unittest
@@ -117,7 +117,7 @@ class Runner(unittest.TestCase):
                     expects = out + re.escape(ret)
                     if not hard and soft:
                         if not re.search(expects, test_out + test_ret):
-                            test_name = os.path.basename(test_file)
+                            test_name = Path(test_file).name
                             self.skipTest(
                                 f"soft failure {test_name}:{line_num} --> {form}"
                             )

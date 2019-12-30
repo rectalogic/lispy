@@ -2,7 +2,7 @@ from __future__ import annotations
 import readline
 import sys
 import traceback
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, Union, TYPE_CHECKING
 
 from . import core
 from . import reader
@@ -29,6 +29,7 @@ from .mal_types import (
 if TYPE_CHECKING:
     from .mal_types import HashMapDict
     from .env import ExecutionLimit
+    from pathlib import Path
 
 
 def READ(x: str) -> MalExpression:
@@ -323,5 +324,5 @@ def repl(env: Env, verbose: bool = False):
             eof = True
 
 
-def load_file(env: Env, filename: str) -> str:
-    return rep_handling_exceptions('(load-file "' + filename + '")', env)
+def load_file(env: Env, filename: Union[str, Path]) -> str:
+    return rep_handling_exceptions('(load-file "' + str(filename) + '")', env)

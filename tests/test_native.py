@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import List, Optional
 import os
+from pathlib import Path
 import logging
 import unittest
-import glob
 import functools
 import dataclasses
 from urllib.parse import urlparse
@@ -93,11 +93,11 @@ INJECTIONS = {
 
 class TestNative(Runner):
     def test_native(self):
-        for test_file in sorted(glob.glob(os.path.join(TEST_DIR, "native*.mal"))):
-            test_basename = os.path.basename(test_file)
-            cwd = os.getcwd()
+        for test_file in sorted(TEST_DIR.glob("native*.mal")):
+            test_basename = Path(test_file).name
+            cwd = Path.cwd()
             try:
-                os.chdir(os.path.dirname(__file__))
+                os.chdir(Path(__file__).parent)
                 repl_env = rep.init_repl_env(argv=[])
                 repl_env.inject_native(**INJECTIONS[test_basename])
                 with self.subTest(test_file=test_basename):

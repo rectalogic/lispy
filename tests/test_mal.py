@@ -1,5 +1,5 @@
 import os
-import glob
+from pathlib import Path
 import functools
 import logging
 import unittest
@@ -10,11 +10,11 @@ from tests.runner import Runner
 
 log = logging.getLogger(__name__)
 
-TEST_DIR = os.path.join(os.path.dirname(__file__), "mal", "tests")
+TEST_DIR = Path(__file__).parent / "mal" / "tests"
 
-STEP_TEST_FILES = sorted(glob.glob(os.path.join(TEST_DIR, "step*.mal")))
+STEP_TEST_FILES = sorted(TEST_DIR.glob("step*.mal"))
 EXTRA_TEST_FILES = sorted(
-    os.path.join(TEST_DIR, "lib", f)
+    TEST_DIR / "lib" / f
     for f in [
         "protocols.mal",
         "alias-hacks.mal",
@@ -39,14 +39,14 @@ class TestMal(Runner):
         self.run_mal(STEP_TEST_FILES)
 
     def test_mal_perf(self):
-        self.run_mal(glob.glob(os.path.join(TEST_DIR, "perf*.mal")))
+        self.run_mal(TEST_DIR.glob("perf*.mal"))
 
     def run_mal(self, test_files):
         for test_file in test_files:
-            test_basename = os.path.basename(test_file)
-            cwd = os.getcwd()
+            test_basename = test_file.name
+            cwd = Path.cwd()
             try:
-                os.chdir(os.path.join(TEST_DIR))
+                os.chdir(TEST_DIR)
                 repl_env = rep.init_repl_env(argv=[])
                 with self.subTest(test_file=test_basename):
                     self.run_tests(
@@ -61,14 +61,14 @@ class TestMal(Runner):
 
     def run_mal_in_mal(self, test_files, excludes=None):
         for test_file in test_files:
-            test_basename = os.path.basename(test_file)
+            test_basename = test_file.name
             if excludes and test_basename in excludes:
                 continue
-            cwd = os.getcwd()
+            cwd = Path.cwd()
             try:
-                os.chdir(os.path.join(TEST_DIR))
-                repl_env = rep.init_repl_env(argv=[test_file])
-                mal_script = os.path.join(TEST_DIR, "..", "mal", "stepA_mal.mal")
+                os.chdir(TEST_DIR)
+                repl_env = rep.init_repl_env(argv=[str(test_file)])
+                mal_script = TEST_DIR / ".." / "mal" / "stepA_mal.mal"
                 rep.load_file(repl_env, mal_script)
                 mal_function = repl_env.get("rep")
 
