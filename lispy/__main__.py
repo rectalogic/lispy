@@ -4,7 +4,7 @@ from .interpreter import Lispy
 from .core import python_print
 
 
-parser = argparse.ArgumentParser(description="Lispy")
+parser = argparse.ArgumentParser(prog="lispy", description="Lispy")
 parser.add_argument(
     "-v", "--verbose", action="store_true", help="Verbose error messages"
 )

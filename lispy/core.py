@@ -79,7 +79,7 @@ def list_q(x: MalExpression) -> MalBoolean:
 
 
 def empty_q(x: MalExpression) -> MalBoolean:
-    if sequential_q(x):
+    if sequential_q(x).native():
         return MalBoolean(len(x.native()) == 0)
     raise MalInvalidArgumentException(x, "not a list")
 
@@ -330,14 +330,12 @@ def get(map: MalExpression, key: MalExpression) -> MalExpression:
 
 
 def first(args: List[MalExpression]) -> MalExpression:
-    try:
-        if isinstance(args[0], MalNil):
-            return MalNil()
-        return args[0].native()[0]
-    except IndexError:
+    if isinstance(args[0], MalNil):
         return MalNil()
-    except TypeError:
-        raise MalInvalidArgumentException(args[0], "not a list")
+    if isinstance(args[0], (MalList, MalVector)):
+        lst = args[0].native()
+        return lst[0] if lst else MalNil()
+    raise MalInvalidArgumentException(args[0], "not a list")
 
 
 def rest(args: List[MalExpression]) -> MalExpression:
@@ -358,7 +356,7 @@ def map_q(arg: MalExpression) -> MalExpression:
 
 
 def sequential_q(arg: MalExpression) -> MalExpression:
-    return MalBoolean(isinstance(arg, MalList) or isinstance(arg, MalVector))
+    return MalBoolean(isinstance(arg, (MalList, MalVector)))
 
 
 def vector(args: List[MalExpression]) -> MalExpression:

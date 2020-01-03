@@ -27,3 +27,6 @@ a
 
 (> 2)
 ;/not enough arguments"
+
+(empty? nil)
+;/not a list"

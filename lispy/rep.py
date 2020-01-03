@@ -2,6 +2,7 @@ from __future__ import annotations
 import readline
 import sys
 import traceback
+import logging
 from typing import Optional, List, Union, TYPE_CHECKING
 
 from . import core
@@ -31,6 +32,8 @@ if TYPE_CHECKING:
     from .env import ExecutionLimit
     from pathlib import Path
 
+log = logging.getLogger(__name__)
+
 
 def READ(x: str) -> MalExpression:
     return reader.read(x)
@@ -52,7 +55,7 @@ def eval_ast(ast: MalExpression, env: Env) -> MalExpression:
 
 
 def is_pair(x: MalExpression) -> bool:
-    if (isinstance(x, MalList) or isinstance(x, MalVector)) and len(x.native()) > 0:
+    if isinstance(x, (MalList, MalVector)) and len(x.native()) > 0:
         return True
     return False
 
@@ -86,8 +89,16 @@ def quasiquote(ast: MalExpression) -> MalExpression:
 
 
 def EVAL(ast: MalExpression, env: Env) -> MalExpression:
+    try:
+        return _EVAL(ast, env)
+    except MalException as e:
+        e.backtrace.append(ast)
+        raise e
+
+
+def _EVAL(ast: MalExpression, env: Env) -> MalExpression:
     while True:
-        # print("EVAL: " + str(ast))
+        log.debug("EVAL: %s", str(ast))
         env.check_execution_limit()
         ast = macroexpand(ast, env)
         ast_native = ast.native()
@@ -299,11 +310,13 @@ def rep_handling_exceptions(line: str, repl_env: Env, verbose: bool = False) -> 
     except MalUnknownSymbolException as e:
         m = "'" + e.func + "' not found"
         if verbose:
+            m += "\n" + e.readable_backtrace()
             m += "\n" + traceback.format_exc()
         return m
     except MalException as e:
         m = "ERROR: " + str(e)
         if verbose:
+            m += "\n" + e.readable_backtrace()
             m += "\n" + traceback.format_exc()
         return m
 
@@ -324,5 +337,5 @@ def repl(env: Env, verbose: bool = False):
             eof = True
 
 
-def load_file(env: Env, filename: Union[str, Path]) -> str:
-    return rep_handling_exceptions('(load-file "' + str(filename) + '")', env)
+def load_file(env: Env, filename: Union[str, Path], verbose: bool = False) -> str:
+    return rep_handling_exceptions('(load-file "' + str(filename) + '")', env, verbose)

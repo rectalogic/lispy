@@ -30,7 +30,7 @@ class Lispy:
 
     def load_file(self, filename: str) -> str:
         self.env.reset_execution_limit()
-        return load_file(self.env, filename)
+        return load_file(self.env, filename, self.verbose)
 
     def repl(self):
         repl(self.env, self.verbose)

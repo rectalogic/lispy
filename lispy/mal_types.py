@@ -199,9 +199,13 @@ class MalSymbol(MalExpression):
 class MalException(MalExpression, Exception):
     def __init__(self, value: MalExpression) -> None:
         self._value = value
+        self.backtrace: List[MalExpression] = []
 
     def readable_str(self) -> str:
         return str(self._value)
+
+    def readable_backtrace(self) -> str:
+        return "\n".join(str(f) for f in self.backtrace)
 
     def native(self) -> MalExpression:
         return self._value
