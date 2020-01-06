@@ -30,3 +30,12 @@ a
 
 (empty? nil)
 ;/not a list"
+
+(rest nil)
+;=>()
+
+(rest [])
+;=>()
+
+(rest "")
+;/not a list or vector"

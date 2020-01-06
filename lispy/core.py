@@ -339,12 +339,11 @@ def first(args: List[MalExpression]) -> MalExpression:
 
 
 def rest(args: List[MalExpression]) -> MalExpression:
-    try:
-        if isinstance(args[0], MalNil):
-            return MalList([])
+    if isinstance(args[0], MalNil):
+        return MalList([])
+    if isinstance(args[0], (MalList, MalVector)):
         return MalList(args[0].native()[1:])
-    except TypeError:
-        raise MalInvalidArgumentException(args[0], "not a list or vector")
+    raise MalInvalidArgumentException(args[0], "not a list or vector")
 
 
 def vector_q(arg: MalExpression) -> MalExpression:
