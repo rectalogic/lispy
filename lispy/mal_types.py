@@ -492,12 +492,9 @@ class MalBoolean(MalExpression):
         return self._value
 
 
-class MalAtom(MalExpression, MalMeta):
+class MalAtom(MalExpression):
     def __init__(self, value: MalExpression) -> None:
         self._value = value
-
-    def copy(self) -> MalAtom:
-        return self.__class__(self._value)
 
     def native(self) -> MalExpression:
         return self._value
