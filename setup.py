@@ -44,7 +44,6 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     packages=find_packages(include=["lispy", "lispy.*"]),
-    install_requires=["Arpeggio>=1.9.2"],
     tests_require=["tox"],
     cmdclass={"test": Tox},
     python_requires="~=3.7",

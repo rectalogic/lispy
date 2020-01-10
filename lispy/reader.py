@@ -1,13 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
-
-from arpeggio import (
-    ParserPython,
-    PTNodeVisitor,
-    visit_parse_tree,
-    ZeroOrMore,
-)
-from arpeggio import RegExMatch as _, NoMatch
+from typing import TYPE_CHECKING, List, Optional, Union, cast
+import re
 
 from .mal_types import (
     MalExpression,
@@ -16,247 +9,155 @@ from .mal_types import (
     MalList,
     MalBoolean,
     MalNil,
+    MalBlank,
     MalVector,
     MalHash_map,
 )
 from .mal_types import MalSymbol, MalString, MalKeyword, MalSyntaxException
 
 if TYPE_CHECKING:
-    from arpeggio import ParseTreeNode, SemanticActionResults
     from .mal_types import HashMapDict
 
 
-# Arpeggio grammar
-def mExpression():
-    return [
-        mQuotedExpression,
-        mQuasiQuotedExpression,
-        mSpliceUnquotedExpression,
-        mUnquotedExpression,
-        mDerefExpression,
-        mWithMetaExpression,
-        mList,
-        mVector,
-        mHash_map,
-        mFloat,
-        mInt,
-        mString,
-        mKeyword,
-        mNil,
-        mBoolean,
-        mSymbol,
-    ]
+class Reader:
+    INT_RE = re.compile(r"-?[0-9]+$")
+    FLOAT_RE = re.compile(r"-?[0-9]*\.[0-9]+$")
+    STRING_RE = re.compile(r'"(?:[\\].|[^\\"])*"')
 
+    def __init__(self, tokens: List[str], position: int = 0):
+        self.tokens = tokens
+        self.position = position
 
-def mQuotedExpression():
-    return "'", mExpression
+    def next(self) -> str:
+        self.position += 1
+        return self.tokens[self.position - 1]
 
+    def peek(self) -> Optional[str]:
+        if len(self.tokens) > self.position:
+            return self.tokens[self.position]
+        else:
+            return None
 
-def mQuasiQuotedExpression():
-    return "`", mExpression
+    def read_atom(self) -> MalExpression:
+        token = self.next()
+        if re.match(self.INT_RE, token):
+            return MalInt(int(token))
+        elif re.match(self.FLOAT_RE, token):
+            return MalFloat(float(token))
+        elif re.match(self.STRING_RE, token):
+            return MalString(self._unescape(token[1:-1]))
+        elif token[0] == '"':
+            raise MalSyntaxException("expected '\"', got EOF")
+        elif token[0] == ":":
+            return MalKeyword(token[1:])
+        elif token == "nil":
+            return MalNil()
+        elif token == "true":
+            return MalBoolean(True)
+        elif token == "false":
+            return MalBoolean(False)
+        else:
+            return MalSymbol(token)
 
+    def _read_sequence(self, start: str, end: str) -> List[MalExpression]:
+        ast = []
+        token: Optional[str] = self.next()
+        if token != start:
+            raise MalSyntaxException("expected '" + start + "'")
 
-def mSpliceUnquotedExpression():
-    return "~@", mExpression
+        token = self.peek()
+        while token != end:
+            if not token:
+                raise MalSyntaxException("expected '" + end + "', got EOF")
+            ast.append(self.read_form())
+            token = self.peek()
+        self.next()
+        return ast
 
+    def read_list(self) -> MalList:
+        return MalList(self._read_sequence("(", ")"))
 
-def mUnquotedExpression():
-    return "~", mExpression
+    def read_vector(self) -> MalVector:
+        return MalVector(self._read_sequence("[", "]"))
 
-
-def mDerefExpression():
-    return "@", mExpression
-
-
-def mWithMetaExpression():
-    return "^", mExpression, mExpression
-
-
-def mList():
-    return "(", ZeroOrMore(mExpression), ")"
-
-
-def mVector():
-    return "[", ZeroOrMore(mExpression), "]"
-
-
-def mHash_map():
-    return ("{", ZeroOrMore(mExpression), "}")
-
-
-def mFloat():
-    return _(r"-?[0123456789]*\.[0123456789]+")
-
-
-def mInt():
-    return _(r"-?[0123456789]+")
-
-
-def mString():
-    return _(r""""(?:\\.|[^\\"])*"?""")
-
-
-def mKeyword():
-    return _(r""":[^\s\[\]{}('"`,;)]*""")
-
-
-def mSymbol():
-    return _(r"""[^\s\[\]{}('"`,;)]*""")
-
-
-def mNil():
-    return _(r"""nil(?!\?)""")
-
-
-def mBoolean():
-    return _(r"""(true|false)(?!\?)""")
-
-
-class ReadASTVisitor(PTNodeVisitor):
-    def visit_mExpression(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalExpression:
-        return children[0]  # children should already be Mal types
-
-    def visit_mFloat(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalFloat:
-        return MalFloat(float(node.value))
-
-    def visit_mInt(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalInt:
-        return MalInt(int(node.value))
-
-    def visit_mString(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalString:
-        # node.value will have quotes, escape sequences
-        if not isinstance(node.value, str):
-            raise MalSyntaxException("node not a string")
-        if node.value[0] != '"':
-            raise MalSyntaxException(
-                "internal error: parsed a string with no start quote"
-            )
-        val: str = node.value
-        if len(val) < 2 or val[-1] != '"':
-            raise MalSyntaxException("unbalanced string")
-        val = val[1:-1]  # remove outer quotes
-
-        # handle escaped characters
-        i = 0
-        result = ""
-        while i < len(val):
-            if val[i] == "\\":
-                if (i + 1) < len(val):
-                    if val[i + 1] == "n":
-                        result += "\n"
-                    elif val[i + 1] == "\\":
-                        result += "\\"
-                    elif val[i + 1] == '"':
-                        result += '"'
-                    i += 2
-                else:
-                    raise MalSyntaxException(
-                        "unbalanced string or invalid escape sequence"
-                    )
-            else:
-                result += val[i]
-                i += 1
-
-        return MalString(result)
-
-    def visit_mKeyword(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalKeyword:
-        if not isinstance(node.value, str) or len(node.value) <= 1:
-            raise MalSyntaxException("invalid keyword")
-        return MalKeyword(node.value[1:])
-
-    def visit_mList(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalList:
-        return MalList(children)
-
-    def visit_mVector(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalVector:
-        return MalVector(children)
-
-    def visit_mHash_map(self, node: ParseTreeNode, children) -> MalHash_map:
-        if len(children) % 2 != 0:
+    def read_hash_map(self) -> MalHash_map:
+        items = self._read_sequence("{", "}")
+        if len(items) % 2 != 0:
             raise MalSyntaxException("invalid hash-map entries")
         hashmap: HashMapDict = {}
-        for i in range(0, len(children), 2):
-            if not isinstance(children[i], (MalString, MalKeyword)):
+        for i in range(0, len(items), 2):
+            if not isinstance(items[i], (MalString, MalKeyword)):
                 raise MalSyntaxException("hash-map key not string or keyword")
-            hashmap[children[i]] = children[i + 1]
+            hashmap[cast(Union[MalString, MalKeyword], items[i])] = items[i + 1]
         return MalHash_map(hashmap)
 
-    def visit_mSymbol(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalSymbol:
-        return MalSymbol(node.value)
+    def read_form(self) -> MalExpression:
+        token = self.peek()
+        if token is None:
+            raise MalSyntaxException("incomplete form")
+        # reader macros/transforms
+        if token == "'":
+            self.next()
+            return MalList([MalSymbol("quote"), self.read_form()])
+        elif token == "`":
+            self.next()
+            return MalList([MalSymbol("quasiquote"), self.read_form()])
+        elif token == "~":
+            self.next()
+            return MalList([MalSymbol("unquote"), self.read_form()])
+        elif token == "~@":
+            self.next()
+            return MalList([MalSymbol("splice-unquote"), self.read_form()])
+        elif token == "^":
+            self.next()
+            meta = self.read_form()
+            return MalList([MalSymbol("with-meta"), self.read_form(), meta])
+        elif token == "@":
+            self.next()
+            return MalList([MalSymbol("deref"), self.read_form()])
 
-    def visit_mBoolean(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalBoolean:
-        if node.value == "true":
-            return MalBoolean(True)
-        if node.value == "false":
-            return MalBoolean(False)
-        raise Exception("Internal reader error")
+        # list
+        elif token == ")":
+            raise MalSyntaxException("unexpected ')'")
+        elif token == "(":
+            return self.read_list()
 
-    def visit_mNil(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalNil:
-        return MalNil()
+        # vector
+        elif token == "]":
+            raise MalSyntaxException("unexpected ']'")
+        elif token == "[":
+            return self.read_vector()
 
-    def visit_mQuotedExpression(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalList:
-        return MalList([MalSymbol("quote"), children[0]])
+        # hash-map
+        elif token == "}":
+            raise MalSyntaxException("unexpected '}'")
+        elif token == "{":
+            return self.read_hash_map()
 
-    def visit_mQuasiQuotedExpression(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalList:
-        return MalList([MalSymbol("quasiquote"), children[0]])
+        # atom
+        else:
+            return self.read_atom()
 
-    def visit_mSpliceUnquotedExpression(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalList:
-        return MalList([MalSymbol("splice-unquote"), children[0]])
-
-    def visit_mUnquotedExpression(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalList:
-        return MalList([MalSymbol("unquote"), children[0]])
-
-    def visit_mDerefExpression(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalList:
-        return MalList([MalSymbol("deref"), children[0]])
-
-    def visit_mWithMetaExpression(
-        self, node: ParseTreeNode, children: SemanticActionResults
-    ) -> MalList:
-        if len(children) != 2:
-            raise MalSyntaxException("^ macro requires two arguments")
-        return MalList([MalSymbol("with-meta"), children[1], children[0]])
+    def _unescape(self, x: str) -> str:
+        return (
+            x.replace("\\\\", "\N{REPLACEMENT CHARACTER}")
+            .replace('\\"', '"')
+            .replace("\\n", "\n")
+            .replace("\N{REPLACEMENT CHARACTER}", "\\")
+        )
 
 
-def comment():
-    return _(";.*")
+TOKENS_RE = re.compile(
+    r"""[\s,]*(~@|[\[\]{}()'`~^@]|"(?:[\\].|[^\\"])*"?|;.*|[^\s\[\]{}()'"`@,;]+)"""
+)
+
+
+def tokenize(x: str) -> List[str]:
+    return [t for t in re.findall(TOKENS_RE, x) if t[0] != ";"]
 
 
 def read(x: str) -> MalExpression:
-    """Parse a string into a MalExpression"""
-    reader = ParserPython(mExpression, comment_def=comment, ws="\t\n\r ,", debug=False)
-
-    try:
-        parsed = visit_parse_tree(reader.parse(x), ReadASTVisitor())
-        if not isinstance(parsed, MalExpression):
-            raise MalSyntaxException("invalid expression")
-        return parsed
-    except NoMatch as e:
-        raise MalSyntaxException("invalid syntax or unexpected EOF") from e
+    tokens = tokenize(x)
+    if len(tokens) == 0:
+        return MalBlank()
+    return Reader(tokens).read_form()

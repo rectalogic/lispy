@@ -479,6 +479,11 @@ class MalNil(MalExpression):
         return None
 
 
+class MalBlank(MalNil):
+    def readable_str(self) -> str:
+        return ""
+
+
 class MalBoolean(MalExpression):
     def __init__(self, value: bool) -> None:
         self._value = value
