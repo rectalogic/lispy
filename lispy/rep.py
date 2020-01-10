@@ -3,7 +3,7 @@ import readline
 import sys
 import traceback
 import logging
-from typing import Optional, List, Union, TYPE_CHECKING
+from typing import Optional, List, Union, Iterator, TYPE_CHECKING
 
 from . import core
 from . import reader
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def READ(x: str) -> MalExpression:
+def READ(x: Union[str, Iterator[str]]) -> MalExpression:
     return reader.read(x)
 
 
@@ -227,7 +227,7 @@ def PRINT(x: MalExpression) -> str:
     return str(x)
 
 
-def rep(x: str, env: Env) -> str:
+def rep(x: Union[str, Iterator[str]], env: Env) -> str:
     return PRINT(EVAL(READ(x), env))
 
 
@@ -304,9 +304,11 @@ def print_exc():
     core.python_print(traceback.format_exc())
 
 
-def rep_handling_exceptions(line: str, repl_env: Env, verbose: bool = False) -> str:
+def rep_handling_exceptions(
+    lines: Union[str, Iterator[str]], repl_env: Env, verbose: bool = False
+) -> str:
     try:
-        return rep(line, repl_env)
+        return rep(lines, repl_env)
     except MalUnknownSymbolException as e:
         m = "'" + e.func + "' not found"
         if verbose:
@@ -327,12 +329,17 @@ def repl(env: Env, verbose: bool = False):
 
     rep('(println (str "Mal [" *host-language* "]"))', env)
 
+    def line_reader() -> Iterator[str]:
+        line = input("user> ")
+        while line:
+            readline.add_history(line)
+            yield line
+            line = input("> ")
+
     while not eof:
         try:
-            line = input("user> ")
-            readline.add_history(line)
             env.reset_execution_limit()
-            core.python_print(rep_handling_exceptions(line, env, verbose))
+            core.python_print(rep_handling_exceptions(line_reader(), env, verbose))
         except EOFError:
             eof = True
 

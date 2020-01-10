@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, List, Optional, Union, cast
+from typing import TYPE_CHECKING, List, Optional, Union, Iterator, cast
 import re
+import itertools
 
 from .mal_types import (
     MalExpression,
@@ -19,24 +20,60 @@ if TYPE_CHECKING:
     from .mal_types import HashMapDict
 
 
+class Tokenizer:
+    TOKENS_RE = re.compile(
+        r"""[\s,]*(~@|[\[\]{}()'`~^@]|"(?:[\\].|[^\\"])*"?|;.*|[^\s\[\]{}()'"`@,;]+)"""
+    )
+
+    class Peek(str):
+        pass
+
+    PEEK = Peek()
+
+    def __init__(self, lines: Union[str, Iterator[str]]):
+        if isinstance(lines, str):
+            self._tokens = self.tokenize(lines)
+        else:
+            self._tokens = itertools.chain.from_iterable(
+                self.tokenize(line) for line in lines
+            )
+        self._peek: Optional[str] = self.PEEK
+
+    def tokenize(self, x: str) -> Iterator[str]:
+        return (t for t in re.findall(self.TOKENS_RE, x) if t[0] != ";")
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> str:
+        if self._peek is None:
+            raise StopIteration()
+        if self._peek is self.PEEK:
+            self._peek = next(self._tokens)
+            return self._peek
+        p = self._peek
+        self._peek = self.PEEK
+        return p
+
+    def peek(self) -> Optional[str]:
+        if self._peek is self.PEEK:
+            self._peek = next(self._tokens, None)
+        return self._peek
+
+
 class Reader:
     INT_RE = re.compile(r"-?[0-9]+$")
     FLOAT_RE = re.compile(r"-?[0-9]*\.[0-9]+$")
     STRING_RE = re.compile(r'"(?:[\\].|[^\\"])*"')
 
-    def __init__(self, tokens: List[str], position: int = 0):
+    def __init__(self, tokens: Tokenizer):
         self.tokens = tokens
-        self.position = position
 
     def next(self) -> str:
-        self.position += 1
-        return self.tokens[self.position - 1]
+        return next(self.tokens)
 
     def peek(self) -> Optional[str]:
-        if len(self.tokens) > self.position:
-            return self.tokens[self.position]
-        else:
-            return None
+        return self.tokens.peek()
 
     def read_atom(self) -> MalExpression:
         token = self.next()
@@ -147,17 +184,8 @@ class Reader:
         )
 
 
-TOKENS_RE = re.compile(
-    r"""[\s,]*(~@|[\[\]{}()'`~^@]|"(?:[\\].|[^\\"])*"?|;.*|[^\s\[\]{}()'"`@,;]+)"""
-)
-
-
-def tokenize(x: str) -> List[str]:
-    return [t for t in re.findall(TOKENS_RE, x) if t[0] != ";"]
-
-
-def read(x: str) -> MalExpression:
-    tokens = tokenize(x)
-    if len(tokens) == 0:
+def read(x: Union[str, Iterator[str]]) -> MalExpression:
+    tokens = Tokenizer(x)
+    if tokens.peek() is None:
         return MalBlank()
     return Reader(tokens).read_form()
